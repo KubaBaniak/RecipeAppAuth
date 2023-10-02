@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  db_auth:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: '${POSTGRES_USER}'
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+    ports:
+      - '5433:5432'
+    volumes:
+      - db:/var/lib/postgresql/data
+    profiles:
+      - db
+    networks:
+      - recipe-app-network
+  application:
+    image: '${APP_IMAGE_NAME}'
+    build: .
+    env_file: .env
+    ports:
+      - '3000:3000'
+    depends_on:
+      - db_auth
+    profiles:
+      - app
+    networks:
+      - recipe-app-network
+volumes:
+  db:
+    driver: local
+  cache:
+    driver: local
+
+networks:
+  recipe-app-network:
+    driver: bridge
