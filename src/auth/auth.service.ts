@@ -1,24 +1,33 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { BCRYPT } from './constants';
 import * as bcrypt from 'bcryptjs';
 import { SignUpRequest } from './dto';
+import { UserCredentialsRepository } from './user-credentials.repository';
 
 @Injectable()
 export class AuthService {
-  constructor() {}
+  constructor(
+    private readonly userCredentialsRepository: UserCredentialsRepository,
+  ) {}
 
-  async signUp(signUpRequest: SignUpRequest): Promise<any> {
-    const pendingUser = null;
-    const user = null;
+  async signUp(signUpRequest: SignUpRequest): Promise<number> {
+    const { userId, password } = signUpRequest;
 
-    if (pendingUser || user) {
-      throw new ForbiddenException();
+    const isUserInDb =
+      await this.userCredentialsRepository.getUserCredentialsByUserId(userId);
+
+    if (isUserInDb) {
+      throw new ConflictException();
     }
 
-    const hash = await bcrypt.hash(signUpRequest.password, BCRYPT.salt);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT.salt);
 
-    const data = { email: signUpRequest.email, password: hash };
+    const userCredentials =
+      await this.userCredentialsRepository.storeUserCredentials(
+        userId,
+        hashedPassword,
+      );
 
-    return data;
+    return userCredentials.userId;
   }
 }

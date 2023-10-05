@@ -21,8 +21,7 @@ export class AuthController {
   })
   @Post('signup')
   async signUp(@Body() signUpRequest: SignUpRequest): Promise<SignUpResponse> {
-    const createdUser = await this.authService.signUp(signUpRequest);
-
-    return SignUpResponse.from(createdUser);
+    const userId = await this.authService.signUp(signUpRequest);
+    return { userId };
   }
 }

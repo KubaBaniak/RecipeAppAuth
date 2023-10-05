@@ -1,17 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsEmail,
+  IsInt,
   IsNotEmpty,
+  IsPositive,
   IsString,
   Matches,
   MinLength,
 } from 'class-validator';
 
 export class SignUpRequest {
+  @IsInt()
+  @IsPositive()
   @IsNotEmpty()
-  @IsEmail()
   @ApiProperty()
-  email: string;
+  readonly userId: number;
 
   @MinLength(12, { message: 'Minimal length of a password is 12' })
   @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
@@ -20,5 +22,5 @@ export class SignUpRequest {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  password: string;
+  readonly password: string;
 }
