@@ -1,9 +1,9 @@
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
 import { MockAuthService } from '../__mocks__/auth.service.mock';
-import { PrismaService } from '../../prisma/prisma.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
+import { MAX_INT32 } from '../constants';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -12,7 +12,6 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
-        PrismaService,
         {
           provide: AuthService,
           useClass: MockAuthService,
@@ -23,15 +22,11 @@ describe('AuthController', () => {
     authController = module.get<AuthController>(AuthController);
   });
 
-  it('should be defined', () => {
-    expect(authController).toBeDefined();
-  });
-
   describe('SignUp', () => {
     it('should sign up user', async () => {
       //given
       const request = {
-        email: faker.internet.email(),
+        userId: faker.number.int({ max: MAX_INT32 }),
         password: faker.internet.password(),
       };
 
@@ -39,10 +34,7 @@ describe('AuthController', () => {
       const signedUpUser = await authController.signUp(request);
 
       //then
-      expect(signedUpUser).toEqual({
-        id: expect.any(Number),
-        email: request.email,
-      });
+      expect(signedUpUser.userId).toEqual(request.userId);
     });
   });
 });

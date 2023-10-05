@@ -1,5 +1,7 @@
+import { SignUpRequest } from '../dto';
+
 export class MockAuthService {
-  signUp(): Promise<void> {
-    return Promise.resolve();
+  signUp(signUpRequest: SignUpRequest): number {
+    return signUpRequest.userId;
   }
 }
