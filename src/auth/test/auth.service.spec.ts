@@ -47,4 +47,33 @@ describe('AuthService', () => {
       expect(userCredentials).toEqual(request.userId);
     });
   });
+
+  describe('SignIn', () => {
+    it('should return access token', async () => {
+      //given
+      const request = {
+        email: faker.internet.email(),
+        password: faker.internet.password(),
+      };
+      const hashedPassword = await bcrypt.hash(request.password, BCRYPT.salt);
+
+      jest
+        .spyOn(userRepository, 'getUserByEmail')
+        .mockImplementation((email) => {
+          return Promise.resolve({
+            id: faker.number.int(),
+            email,
+            password: hashedPassword,
+            twoFactorAuth: null,
+            role: Role.USER,
+          });
+        });
+
+      //when
+      const accessToken = await authService.signIn(request);
+
+      //then
+      expect(accessToken).toBeDefined();
+    });
+  });
 });
