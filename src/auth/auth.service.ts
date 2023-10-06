@@ -20,7 +20,7 @@ export class AuthService {
       throw new ConflictException();
     }
 
-    const hashedPassword = await bcrypt.hash(password, BCRYPT.salt);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT.SALT);
 
     const userCredentials =
       await this.userCredentialsRepository.storeUserCredentials(
