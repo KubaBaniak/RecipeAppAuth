@@ -9,7 +9,7 @@ import { MAX_INT32 } from '../constants';
 describe('AuthService', () => {
   let authService: AuthService;
   let prismaService: PrismaService;
-  let mockCtx: MockContext;
+  let mockContext: MockContext;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -19,7 +19,7 @@ describe('AuthService', () => {
     authService = module.get<AuthService>(AuthService);
     prismaService = module.get<PrismaService>(PrismaService);
 
-    mockCtx = createMockContext();
+    mockContext = createMockContext();
   });
 
   afterAll(async () => {
@@ -34,7 +34,7 @@ describe('AuthService', () => {
         userId: faker.number.int({ max: MAX_INT32 }),
         password: faker.internet.password(),
       };
-      mockCtx.prisma.userCredentials.create.mockResolvedValue({
+      mockContext.prisma.userCredentials.create.mockResolvedValue({
         userId: request.userId,
         password: request.password,
       });
