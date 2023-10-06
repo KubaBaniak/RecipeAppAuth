@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  db_auth:
+  db:
     image: postgres:14.1-alpine
     restart: always
     environment:
@@ -9,7 +9,7 @@ services:
     ports:
       - '5433:5432'
     volumes:
-      - db:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data
     profiles:
       - dependencies
     networks:
@@ -21,15 +21,13 @@ services:
     ports:
       - '3000:3000'
     depends_on:
-      - db_auth
+      - db
     profiles:
       - app
     networks:
       - recipe-app-network
 volumes:
-  db:
-    driver: local
-  cache:
+  postgres:
     driver: local
 
 networks:
