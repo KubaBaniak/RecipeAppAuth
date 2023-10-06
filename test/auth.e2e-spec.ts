@@ -33,6 +33,7 @@ describe('AuthController (e2e)', () => {
   });
 
   afterAll(async () => {
+    await prismaService.userCredentials.deleteMany();
     await prismaService.$disconnect();
     await app.close();
   });
