@@ -6,10 +6,6 @@ defaults: &defaults
   docker:
     - image: cimg/node:18.16.0
     - image: cimg/postgres:14.1
-      environment:
-        POSTGRES_USER: $POSTGRES_USER
-        POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-        POSTGRES_DB: $POSTGRES_DB
 
 commands:
   install_dependencies:
