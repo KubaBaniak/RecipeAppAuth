@@ -63,6 +63,8 @@ jobs:
       - restore_cache:
           key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
       - create_env_files
+      - setup_remote_docker:
+          version: 20.10.14
       - setup_prisma
       - run:
           name: Run unit tests
@@ -81,6 +83,8 @@ jobs:
       - restore_cache:
           key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
       - create_env_files
+      - setup_remote_docker:
+          version: 20.10.14
       - setup_prisma
       - run:
           name: Run e2e tests
