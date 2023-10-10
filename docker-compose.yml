@@ -11,7 +11,7 @@ services:
     volumes:
       - db:/var/lib/postgresql/data
     profiles:
-      - db
+      - dependencies
     networks:
       - recipe-app-network
   application:
