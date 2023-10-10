@@ -5,6 +5,10 @@ defaults: &defaults
   working_directory: ~/repo
   docker:
     - image: cimg/node:18.16.0
+    - image: cimg/postgres:14.1
+      environment:
+        POSTGRES_USER: $POSTGRES_USER
+        POSTGRES_PASSWORD: $POSTGRES_PASSWORD
 
 commands:
   install_dependencies:
@@ -20,13 +24,6 @@ commands:
       - run:
           name: Generate and apply migration
           command: npx prisma migrate dev
-  setup_docker_compose_dependencies:
-    steps:
-      - setup_remote_docker:
-          version: 20.10.14
-      - run:
-          name: Run images of services declared in docker-compose.yml
-          command: docker-compose --profile dependencies up -d
   create_env_files:
     steps:
       - run:
@@ -66,7 +63,6 @@ jobs:
       - restore_cache:
           key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
       - create_env_files
-      - setup_docker_compose_dependencies
       - setup_prisma
       - run:
           name: Run unit tests
@@ -85,7 +81,6 @@ jobs:
       - restore_cache:
           key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
       - create_env_files
-      - setup_docker_compose_dependencies
       - setup_prisma
       - run:
           name: Run e2e tests
