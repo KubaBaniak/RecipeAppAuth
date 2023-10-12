@@ -12,6 +12,6 @@ export const generateUserCredentials = function (
 ): UserCredentials {
   return {
     userId: overrides.userId ?? faker.number.int({ max: MAX_INT32 }),
-    password: overrides.password ?? faker.internet.password(),
+    password: overrides.password ?? faker.internet.password({ length: 64 }),
   };
 };
