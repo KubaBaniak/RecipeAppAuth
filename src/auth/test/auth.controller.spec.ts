@@ -42,15 +42,16 @@ describe('AuthController', () => {
     it('should sign in / authenticate user', async () => {
       //given
       const request = {
-        email: faker.internet.email(),
-        password: faker.internet.password(),
+        userId: faker.number.int(),
+        password: faker.internet.password({ length: 64 }),
       };
 
       //when
-      const accessToken = await authController.signIn(request);
+      const { accessToken } = await authController.signIn(request);
 
       //then
       expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
     });
   });
 });

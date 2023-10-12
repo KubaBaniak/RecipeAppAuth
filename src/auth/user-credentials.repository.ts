@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UserCredentialsRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  storeUserCredentials(
+  async storeUserCredentials(
     userId: number,
     password: string,
   ): Promise<UserCredentials> {
@@ -20,13 +20,16 @@ export class UserCredentialsRepository {
     return this.prismaService.userCredentials.create(dataObject);
   }
 
-  getUserCredentialsByUserId(
-    userId: number,
-  ): Promise<{ password: string } | null> {
+  async getUserCredentialsByUserId(userId: number): Promise<string | null> {
     const queryObject = {
       select: { password: true },
       where: { userId },
     };
-    return this.prismaService.userCredentials.findUnique(queryObject);
+
+    const result = await this.prismaService.userCredentials.findUnique(
+      queryObject,
+    );
+
+    return result ? result.password : null;
   }
 }
