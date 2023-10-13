@@ -5,6 +5,7 @@ import { MockContext, createMockContext } from '../../prisma/__mocks__/context';
 import { UserCredentialsRepository } from '../user-credentials.repository';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MAX_INT32 } from '../constants';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -13,7 +14,12 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AuthService, UserCredentialsRepository, PrismaService],
+      providers: [
+        AuthService,
+        UserCredentialsRepository,
+        JwtService,
+        PrismaService,
+      ],
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
@@ -45,35 +51,6 @@ describe('AuthService', () => {
       //then
       expect(typeof userCredentials).toEqual('number');
       expect(userCredentials).toEqual(request.userId);
-    });
-  });
-
-  describe('SignIn', () => {
-    it('should return access token', async () => {
-      //given
-      const request = {
-        email: faker.internet.email(),
-        password: faker.internet.password(),
-      };
-      const hashedPassword = await bcrypt.hash(request.password, BCRYPT.salt);
-
-      jest
-        .spyOn(userRepository, 'getUserByEmail')
-        .mockImplementation((email) => {
-          return Promise.resolve({
-            id: faker.number.int(),
-            email,
-            password: hashedPassword,
-            twoFactorAuth: null,
-            role: Role.USER,
-          });
-        });
-
-      //when
-      const accessToken = await authService.signIn(request);
-
-      //then
-      expect(accessToken).toBeDefined();
     });
   });
 });

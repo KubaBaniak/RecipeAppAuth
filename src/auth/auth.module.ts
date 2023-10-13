@@ -3,21 +3,18 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserCredentialsRepository } from './user-credentials.repository';
-import { JwtModule } from '@nestjs/jwt';
-import { JwtAuthGuard, LocalAuthGuard } from './guards';
-import { PassportModule } from '@nestjs/passport';
-import { LocalStrategy, UserAuthBearerStrategy } from './strategies';
+import { LocalAuthGuard } from './guards';
+import { LocalStrategy } from './strategies';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [PassportModule, JwtModule.register({ global: true })],
   providers: [
     AuthService,
+    JwtService,
     UserCredentialsRepository,
     PrismaService,
     LocalStrategy,
-    UserAuthBearerStrategy,
     LocalAuthGuard,
-    JwtAuthGuard,
   ],
   controllers: [AuthController],
   exports: [AuthService],
