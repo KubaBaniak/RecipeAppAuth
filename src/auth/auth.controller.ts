@@ -1,6 +1,11 @@
 import { Controller, Body, Post, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignUpRequest, SignUpResponse } from './dto';
+import {
+  CreatePatRequest,
+  CreatePatResponse,
+  SignUpRequest,
+  SignUpResponse,
+} from './dto';
 import {
   ApiTags,
   ApiBadRequestResponse,
@@ -23,5 +28,17 @@ export class AuthController {
   async signUp(@Body() signUpRequest: SignUpRequest): Promise<SignUpResponse> {
     const userId = await this.authService.signUp(signUpRequest);
     return { userId };
+  }
+
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Add PAT for user' })
+  @Post('create/pat')
+  async createPersonalAccessToken(
+    createPatRequest: CreatePatRequest,
+  ): Promise<CreatePatResponse> {
+    const patToken = await this.authService.createPersonalAccessToken(
+      createPatRequest.userId,
+    );
+    return CreatePatResponse.from(patToken);
   }
 }
