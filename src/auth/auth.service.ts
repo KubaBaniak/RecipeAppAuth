@@ -59,6 +59,7 @@ export class AuthService {
     if (validPersonalAccessToken) {
       this.personalAccessTokenRepository.invalidatePatForUserId(userId);
     }
+
     const personalAccessToken = await this.generateToken(userId, SECRETS.PAT);
     const { token } =
       await this.personalAccessTokenRepository.savePersonalAccessToken(

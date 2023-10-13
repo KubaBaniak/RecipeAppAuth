@@ -4,6 +4,12 @@ import { MockAuthService } from '../__mocks__/auth.service.mock';
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { MAX_INT32 } from '../constants';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+} from '../repositories';
+import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -12,6 +18,10 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
+        PrismaService,
+        UserCredentialsRepository,
+        PersonalAccessTokenRepository,
+        JwtService,
         {
           provide: AuthService,
           useClass: MockAuthService,
@@ -35,6 +45,19 @@ describe('AuthController', () => {
 
       //then
       expect(signedUpUser.userId).toEqual(request.userId);
+    });
+  });
+
+  describe('Personal access token', () => {
+    it('should create personal access token', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+
+      const createPatResponse = await authController.createPat(request);
+
+      expect(createPatResponse).toBeDefined();
+      expect(typeof createPatResponse.personalAccessToken).toBe('string');
     });
   });
 });

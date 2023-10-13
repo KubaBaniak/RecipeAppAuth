@@ -31,14 +31,14 @@ export class AuthController {
   }
 
   @HttpCode(201)
-  @ApiOperation({ summary: 'Add PAT for user' })
-  @Post('create/pat')
-  async createPersonalAccessToken(
-    createPatRequest: CreatePatRequest,
+  @ApiOperation({ summary: 'Add personal access token for user' })
+  @Post('create-pat')
+  async createPat(
+    @Body() createPatRequest: CreatePatRequest,
   ): Promise<CreatePatResponse> {
-    const patToken = await this.authService.createPersonalAccessToken(
-      createPatRequest.userId,
-    );
-    return CreatePatResponse.from(patToken);
+    const personalAccessToken =
+      await this.authService.createPersonalAccessToken(createPatRequest.userId);
+
+    return CreatePatResponse.from(personalAccessToken);
   }
 }

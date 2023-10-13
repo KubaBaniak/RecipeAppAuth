@@ -4,8 +4,14 @@ import { AuthModule } from '../src/auth/auth.module';
 import { AuthService } from '../src/auth/auth.service';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { UserCredentialsRepository } from '../src/auth/user-credentials.repository';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+} from '../src/auth/repositories';
 import { generateUserCredentials } from '../src/auth/test/user-credentials.factory';
+import { faker } from '@faker-js/faker';
+import { MAX_INT32 } from '../src/auth/constants';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -14,7 +20,13 @@ describe('AuthController (e2e)', () => {
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AuthModule],
-      providers: [AuthService, UserCredentialsRepository, PrismaService],
+      providers: [
+        AuthService,
+        JwtService,
+        UserCredentialsRepository,
+        PersonalAccessTokenRepository,
+        PrismaService,
+      ],
     }).compile();
 
     app = moduleRef.createNestApplication();
@@ -64,6 +76,32 @@ describe('AuthController (e2e)', () => {
         .set('Accept', 'application/json')
         .send(userCredentials)
         .expect(HttpStatus.CONFLICT);
+    });
+  });
+
+  describe('POST /auth/create-pat', () => {
+    it(`should create personal access token for user`, async () => {
+      const patCreateRequest = { userId: faker.number.int({ max: MAX_INT32 }) };
+      return request(app.getHttpServer())
+        .post('/auth/create-pat')
+        .set('Accept', 'application/json')
+        .send(patCreateRequest)
+        .expect(async () => {
+          const { userId } = patCreateRequest;
+          const pat = await prismaService.personalAccessTokens.findUnique({
+            where: { userId },
+          });
+          expect(pat).toBeDefined();
+          expect(pat).toEqual(
+            expect.objectContaining({
+              userId,
+              createdAt: expect.any(Date),
+              token: expect.any(String),
+              invalidatedAt: null,
+            }),
+          );
+        })
+        .expect(HttpStatus.CREATED);
     });
   });
 });

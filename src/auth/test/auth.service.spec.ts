@@ -1,25 +1,35 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
-import { MockContext, createMockContext } from '../../prisma/__mocks__/context';
-import { UserCredentialsRepository } from '../user-credentials.repository';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+} from '../repositories';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MAX_INT32 } from '../constants';
+import { MockPatRepository } from '../__mocks__';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
   let authService: AuthService;
   let prismaService: PrismaService;
-  let mockContext: MockContext;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AuthService, UserCredentialsRepository, PrismaService],
+      providers: [
+        AuthService,
+        JwtService,
+        PrismaService,
+        UserCredentialsRepository,
+        {
+          provide: PersonalAccessTokenRepository,
+          useClass: MockPatRepository,
+        },
+      ],
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
     prismaService = module.get<PrismaService>(PrismaService);
-
-    mockContext = createMockContext();
   });
 
   afterAll(async () => {
@@ -34,10 +44,6 @@ describe('AuthService', () => {
         userId: faker.number.int({ max: MAX_INT32 }),
         password: faker.internet.password(),
       };
-      mockContext.prisma.userCredentials.create.mockResolvedValue({
-        userId: request.userId,
-        password: request.password,
-      });
 
       //when
       const userCredentials = await authService.signUp(request);
@@ -45,6 +51,19 @@ describe('AuthService', () => {
       //then
       expect(typeof userCredentials).toEqual('number');
       expect(userCredentials).toEqual(request.userId);
+    });
+  });
+
+  describe('Personal access token', () => {
+    it('should create personal access token', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const personalAccessToken = await authService.createPersonalAccessToken(
+        userId,
+      );
+
+      expect(personalAccessToken).toBeDefined();
+      expect(typeof personalAccessToken).toBe('string');
     });
   });
 });

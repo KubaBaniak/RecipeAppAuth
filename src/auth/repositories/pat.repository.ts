@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PersonalAccessToken } from '@prisma/client';
+import { PersonalAccessTokens } from '@prisma/client';
 
 @Injectable()
 export class PersonalAccessTokenRepository {
@@ -9,8 +9,8 @@ export class PersonalAccessTokenRepository {
   savePersonalAccessToken(
     userId: number,
     token: string,
-  ): Promise<PersonalAccessToken> {
-    return this.prisma.personalAccessToken.create({
+  ): Promise<PersonalAccessTokens> {
+    return this.prisma.personalAccessTokens.create({
       data: {
         token,
         userId: userId,
@@ -18,8 +18,8 @@ export class PersonalAccessTokenRepository {
     });
   }
 
-  getValidPatForUserId(userId: number): Promise<PersonalAccessToken | null> {
-    return this.prisma.personalAccessToken.findFirst({
+  getValidPatForUserId(userId: number): Promise<PersonalAccessTokens | null> {
+    return this.prisma.personalAccessTokens.findFirst({
       where: {
         userId,
         invalidatedAt: {
@@ -30,7 +30,7 @@ export class PersonalAccessTokenRepository {
   }
 
   async invalidatePatForUserId(userId: number): Promise<void> {
-    await this.prisma.personalAccessToken.updateMany({
+    await this.prisma.personalAccessTokens.updateMany({
       where: {
         userId,
       },

@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 import { MAX_INT32 } from '../constants';
-import { PersonalAccessToken } from '@prisma/client';
+import { PersonalAccessTokens } from '@prisma/client';
 
 type PatOverrides = {
   userId?: number;
@@ -9,7 +9,7 @@ type PatOverrides = {
   invalidatedAt?: Date | null;
 };
 
-export function createPat(overrides: PatOverrides = {}): PersonalAccessToken {
+export function createPat(overrides: PatOverrides = {}): PersonalAccessTokens {
   return {
     userId: overrides.userId ?? faker.number.int({ max: MAX_INT32 }),
     createdAt: overrides.createdAt ?? new Date(),
