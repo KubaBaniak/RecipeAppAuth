@@ -6,9 +6,10 @@ import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { UserCredentialsRepository } from '../src/auth/user-credentials.repository';
 import { generateUserCredentials } from '../src/auth/test/user-credentials.factory';
-import * as bcrypt from 'bcryptjs';
 import { faker } from '@faker-js/faker';
+import * as bcrypt from 'bcryptjs';
 import { BCRYPT } from '../src/auth/constants';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -17,7 +18,12 @@ describe('AuthController (e2e)', () => {
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AuthModule],
-      providers: [AuthService, UserCredentialsRepository, PrismaService],
+      providers: [
+        JwtService,
+        AuthService,
+        UserCredentialsRepository,
+        PrismaService,
+      ],
     }).compile();
 
     app = moduleRef.createNestApplication();
