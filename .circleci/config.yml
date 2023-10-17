@@ -21,7 +21,7 @@ commands:
       - run:
           name: Generate and apply migration
           command: npx prisma migrate dev
-  create_env_files:
+  create_envs:
     steps:
       - run:
           name: Create .env file
@@ -36,9 +36,9 @@ commands:
             cat .env > test.env
 
 jobs:
-  build:
+  setup_project:
     <<: *defaults
-    resource_class: medium
+    resource_class: small
     steps:
       - checkout
       - restore_cache:
@@ -51,13 +51,13 @@ jobs:
 
   unit_test:
     <<: *defaults
-    resource_class: medium
+    resource_class: small
     parallelism: 2
     steps:
       - checkout
       - restore_cache:
           key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
-      - create_env_files
+      - create_envs
       - setup_remote_docker:
           version: 20.10.14
       - setup_prisma
@@ -71,13 +71,13 @@ jobs:
 
   e2e_test:
     <<: *defaults
-    resource_class: medium
+    resource_class: small
     parallelism: 2
     steps:
       - checkout
       - restore_cache:
           key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
-      - create_env_files
+      - create_envs
       - setup_remote_docker:
           version: 20.10.14
       - setup_prisma
@@ -98,18 +98,18 @@ jobs:
       - run: HUSKY=0 npx semantic-release
 
 workflows:
-  build_and_test:
+  setup_and_test:
     jobs:
-      - build:
+      - setup_project:
           context: recipe-app-auth-test
       - unit_test:
           context: recipe-app-auth-test
           requires:
-            - build
+            - setup_project
       - e2e_test:
           context: recipe-app-auth-test
           requires:
-            - build
+            - setup_project
       - release:
           requires:
             - unit_test
