@@ -6,6 +6,6 @@ export const BCRYPT = {
 
 export const MAX_INT32 = 2147483647;
 
-export const STRATEGY = {
-  local: 'local',
-};
+export enum Strategies {
+  Local = 'local',
+}

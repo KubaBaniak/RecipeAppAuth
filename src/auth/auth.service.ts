@@ -64,8 +64,8 @@ export class AuthService {
 
     return this.generateToken(
       signInRequest.userId,
-      process.env.JWT_SECRET ? process.env.JWT_SECRET : 'Default_jwt_secret',
-      process.env.JWT_EXPIRY_TIME ? process.env.JWT_EXPIRY_TIME : '1h',
+      process.env.JWT_SECRET ?? 'Default_jwt_secret',
+      process.env.JWT_EXPIRY_TIME ?? '1h',
     );
   }
 
@@ -75,13 +75,14 @@ export class AuthService {
         request.userId,
       );
 
-    const hashedPassword = userCredentials ? userCredentials.password : null;
-
-    if (!hashedPassword) {
+    if (!userCredentials) {
       throw new UnauthorizedException();
     }
 
-    const isMatch = await bcrypt.compare(request.password, hashedPassword);
+    const isMatch = await bcrypt.compare(
+      request.password,
+      userCredentials.password,
+    );
 
     if (!isMatch) {
       throw new UnauthorizedException();
