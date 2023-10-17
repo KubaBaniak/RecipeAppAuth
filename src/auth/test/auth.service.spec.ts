@@ -5,7 +5,7 @@ import { UserCredentialsRepository } from '../user-credentials.repository';
 import * as bcrypt from 'bcryptjs';
 import { BCRYPT, MAX_INT32 } from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MockUserCredentialsRepository } from '../__mocks__/user-credentials.repository.mock';
+import { MockUserCredentialsRepository } from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
