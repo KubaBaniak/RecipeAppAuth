@@ -20,16 +20,13 @@ export class UserCredentialsRepository {
     return this.prismaService.userCredentials.create(dataObject);
   }
 
-  async getUserCredentialsByUserId(userId: number): Promise<string | null> {
+  async getUserCredentialsByUserId(
+    userId: number,
+  ): Promise<UserCredentials | null> {
     const queryObject = {
-      select: { password: true },
       where: { userId },
     };
 
-    const result = await this.prismaService.userCredentials.findUnique(
-      queryObject,
-    );
-
-    return result ? result.password : null;
+    return this.prismaService.userCredentials.findUnique(queryObject);
   }
 }

@@ -66,7 +66,7 @@ describe('AuthService', () => {
       };
       jest
         .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
-        .mockImplementationOnce(() => Promise.resolve(request.password));
+        .mockImplementationOnce(() => Promise.resolve(request));
 
       //when
       const accessToken = await authService.signIn(request);

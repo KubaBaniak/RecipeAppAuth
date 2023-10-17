@@ -108,8 +108,17 @@ describe('AuthController (e2e)', () => {
         .set('Accept', 'application/json')
         .send({
           userId: userCredentials.userId,
-          password: `${userCredentials}${faker.string.alpha({ length: 5 })}`,
+          password: faker.internet.password({
+            length: 64,
+          }),
         })
+        .expect(HttpStatus.UNAUTHORIZED);
+    });
+    it(`should throw 401 - user does not exist`, async () => {
+      return request(app.getHttpServer())
+        .post('/auth/signin')
+        .set('Accept', 'application/json')
+        .send(generateUserCredentials())
         .expect(HttpStatus.UNAUTHORIZED);
     });
   });

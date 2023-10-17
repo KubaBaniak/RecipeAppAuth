@@ -70,21 +70,24 @@ export class AuthService {
   }
 
   async validateUser(request: UserCredentialsRequest): Promise<number> {
-    const userPassword =
+    const userCredentials =
       await this.userCredentialsRepository.getUserCredentialsByUserId(
         request.userId,
       );
 
-    if (!userPassword) {
+    if (!userCredentials) {
       throw new UnauthorizedException();
     }
 
-    const isMatch = await bcrypt.compare(request.password, userPassword);
+    const isMatch = await bcrypt.compare(
+      request.password,
+      userCredentials.password,
+    );
 
     if (!isMatch) {
       throw new UnauthorizedException();
     }
 
-    return request.userId;
+    return userCredentials.userId;
   }
 }
