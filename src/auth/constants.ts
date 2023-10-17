@@ -5,7 +5,16 @@ export const BCRYPT = {
 };
 
 export const SECRETS = {
-  PAT: process.env.JWT_PAT_SECRET ? process.env.JWT_PAT_SECRET : 'DefaultPAT',
+  AUTH: process.env.JWT_SECRET ?? 'DefaultAUTH',
+  PAT: process.env.JWT_PAT_SECRET ?? 'DefaultPersonalAccessToken',
+};
+
+export const EXPIRY_TIMES_OF_SECRETS = {
+  AUTH: process.env.JWT_EXPIRY_TIME ?? '1h',
 };
 
 export const MAX_INT32 = 2147483647;
+
+export enum Strategies {
+  Local = 'local',
+}

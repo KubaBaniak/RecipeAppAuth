@@ -5,14 +5,16 @@ import {
   PersonalAccessTokenRepository,
   UserCredentialsRepository,
 } from '../repositories';
+import { MockUserCredentialsRepository } from '../__mocks__';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MAX_INT32 } from '../constants';
+import { BCRYPT, MAX_INT32 } from '../constants';
 import { MockPatRepository } from '../__mocks__';
+import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
   let authService: AuthService;
-  let prismaService: PrismaService;
+  let userCredentialsRepository: UserCredentialsRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -25,16 +27,21 @@ describe('AuthService', () => {
           provide: PersonalAccessTokenRepository,
           useClass: MockPatRepository,
         },
+        {
+          provide: UserCredentialsRepository,
+          useClass: MockUserCredentialsRepository,
+        },
       ],
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
-    prismaService = module.get<PrismaService>(PrismaService);
+    userCredentialsRepository = module.get<UserCredentialsRepository>(
+      UserCredentialsRepository,
+    );
   });
 
   afterAll(async () => {
     jest.clearAllMocks();
-    await prismaService.userCredentials.deleteMany();
   });
 
   describe('SignUp', () => {
@@ -44,6 +51,9 @@ describe('AuthService', () => {
         userId: faker.number.int({ max: MAX_INT32 }),
         password: faker.internet.password(),
       };
+      jest
+        .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
+        .mockImplementationOnce(() => Promise.resolve(null));
 
       //when
       const userCredentials = await authService.signUp(request);
@@ -51,6 +61,28 @@ describe('AuthService', () => {
       //then
       expect(typeof userCredentials).toEqual('number');
       expect(userCredentials).toEqual(request.userId);
+    });
+  });
+
+  describe('SignIn', () => {
+    it('should return access token', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        password: await bcrypt.hash(
+          faker.internet.password({ length: 64 }),
+          BCRYPT.SALT,
+        ),
+      };
+      jest
+        .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
+        .mockImplementationOnce(() => Promise.resolve(request));
+
+      //when
+      const accessToken = await authService.signIn(request);
+
+      //then
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
     });
   });
 

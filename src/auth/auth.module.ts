@@ -6,17 +6,21 @@ import {
   UserCredentialsRepository,
   PersonalAccessTokenRepository,
 } from './repositories';
+import { LocalAuthGuard } from './guards';
+import { LocalStrategy } from './strategies';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  controllers: [AuthController],
   providers: [
     AuthService,
+    JwtService,
     UserCredentialsRepository,
     PersonalAccessTokenRepository,
-    JwtService,
     PrismaService,
+    LocalStrategy,
+    LocalAuthGuard,
   ],
+  controllers: [AuthController],
   exports: [AuthService],
 })
 export class AuthModule {}

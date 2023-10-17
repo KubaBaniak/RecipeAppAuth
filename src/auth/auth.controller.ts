@@ -1,10 +1,12 @@
-import { Controller, Body, Post, HttpCode } from '@nestjs/common';
+import { Controller, Body, Post, HttpCode, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
-  CreatePatRequest,
-  CreatePatResponse,
   SignUpRequest,
   SignUpResponse,
+  SignInRequest,
+  SignInResponse,
+  CreatePatRequest,
+  CreatePatResponse,
 } from './dto';
 import {
   ApiTags,
@@ -12,6 +14,7 @@ import {
   ApiOperation,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
+import { LocalAuthGuard } from './guards';
 
 @Controller('auth')
 @ApiTags('Authentication')
@@ -28,6 +31,15 @@ export class AuthController {
   async signUp(@Body() signUpRequest: SignUpRequest): Promise<SignUpResponse> {
     const userId = await this.authService.signUp(signUpRequest);
     return { userId };
+  }
+  @HttpCode(200)
+  @UseGuards(LocalAuthGuard)
+  @ApiOperation({ summary: 'Authenticate user' })
+  @Post('signin')
+  async signIn(@Body() signInRequest: SignInRequest): Promise<SignInResponse> {
+    const accessToken = await this.authService.signIn(signInRequest);
+
+    return SignInResponse.from(accessToken);
   }
 
   @HttpCode(201)

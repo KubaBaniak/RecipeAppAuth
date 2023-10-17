@@ -1,12 +1,18 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { BCRYPT, SECRETS } from './constants';
+import {
+  ConflictException,
+  UnauthorizedException,
+  Injectable,
+} from '@nestjs/common';
+import { BCRYPT, EXPIRY_TIMES_OF_SECRETS, SECRETS } from './constants';
 import * as bcrypt from 'bcryptjs';
-import { SignUpRequest } from './dto';
 import {
   PersonalAccessTokenRepository,
   UserCredentialsRepository,
 } from './repositories';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import 'dotenv/config';
+
+import { SignInRequest, SignUpRequest, UserCredentialsRequest } from './dto';
 
 @Injectable()
 export class AuthService {
@@ -48,6 +54,45 @@ export class AuthService {
         userId,
         hashedPassword,
       );
+
+    return userCredentials.userId;
+  }
+
+  async signIn(signInRequest: SignInRequest): Promise<string> {
+    const userCredentials =
+      await this.userCredentialsRepository.getUserCredentialsByUserId(
+        signInRequest.userId,
+      );
+
+    if (!userCredentials) {
+      throw new UnauthorizedException();
+    }
+
+    return this.generateToken(
+      signInRequest.userId,
+      SECRETS.AUTH,
+      EXPIRY_TIMES_OF_SECRETS.AUTH,
+    );
+  }
+
+  async validateUser(request: UserCredentialsRequest): Promise<number> {
+    const userCredentials =
+      await this.userCredentialsRepository.getUserCredentialsByUserId(
+        request.userId,
+      );
+
+    if (!userCredentials) {
+      throw new UnauthorizedException();
+    }
+
+    const isMatch = await bcrypt.compare(
+      request.password,
+      userCredentials.password,
+    );
+
+    if (!isMatch) {
+      throw new UnauthorizedException();
+    }
 
     return userCredentials.userId;
   }
