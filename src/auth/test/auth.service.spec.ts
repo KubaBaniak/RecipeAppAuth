@@ -1,16 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
-import { UserCredentialsRepository } from '../user-credentials.repository';
+import {
+  UserCredentialsRepository,
+  PendingUserCredentialsRepository,
+} from '../repositories';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT, MAX_INT32 } from '../constants';
+import { BCRYPT, MAX_INT32, SECRETS } from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MockUserCredentialsRepository } from '../__mocks__';
+import {
+  MockUserCredentialsRepository,
+  MockPendingUserCredentialsRepository,
+} from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
   let authService: AuthService;
   let userCredentialsRepository: UserCredentialsRepository;
+  let pendingUserCredentialsRepository: PendingUserCredentialsRepository;
+  let jwtServcie: JwtService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -22,13 +30,22 @@ describe('AuthService', () => {
           provide: UserCredentialsRepository,
           useClass: MockUserCredentialsRepository,
         },
+        {
+          provide: PendingUserCredentialsRepository,
+          useClass: MockPendingUserCredentialsRepository,
+        },
       ],
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
+    jwtServcie = module.get<JwtService>(JwtService);
     userCredentialsRepository = module.get<UserCredentialsRepository>(
       UserCredentialsRepository,
     );
+    pendingUserCredentialsRepository =
+      module.get<PendingUserCredentialsRepository>(
+        PendingUserCredentialsRepository,
+      );
   });
 
   afterAll(async () => {
@@ -44,6 +61,12 @@ describe('AuthService', () => {
       };
       jest
         .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
+        .mockImplementationOnce(() => Promise.resolve(null));
+      jest
+        .spyOn(
+          pendingUserCredentialsRepository,
+          'getPendingUserCredentialsById',
+        )
         .mockImplementationOnce(() => Promise.resolve(null));
 
       //when
@@ -74,6 +97,55 @@ describe('AuthService', () => {
       //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
+    });
+  });
+
+  describe('Activate account', () => {
+    it('should activate account', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+      jest.spyOn(
+        pendingUserCredentialsRepository,
+        'storePendingUserCredentials',
+      );
+      jest.spyOn(
+        pendingUserCredentialsRepository,
+        'getPendingUserCredentialsById',
+      );
+      jest.spyOn(
+        pendingUserCredentialsRepository,
+        'removePendingUserCredentialsById',
+      );
+
+      const activatedUserCredentials = await authService.activateAccount(
+        userId,
+      );
+
+      expect(typeof activatedUserCredentials).toBe('number');
+      expect(
+        pendingUserCredentialsRepository.storePendingUserCredentials,
+      ).toHaveBeenCalled();
+      expect(
+        pendingUserCredentialsRepository.getPendingUserCredentialsById,
+      ).toHaveBeenCalled();
+      expect(
+        pendingUserCredentialsRepository.removePendingUserCredentialsById,
+      ).toHaveBeenCalled();
+    });
+
+    it('should verify account activation token', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const accountActivationToken = jwtServcie.sign(
+        { id: userId },
+        {
+          secret: SECRETS.ACCOUNT_ACTIVATION,
+        },
+      );
+
+      const tokenPayload = await authService.verifyAccountActivationToken(
+        accountActivationToken,
+      );
+
+      expect(tokenPayload.id).toEqual(userId);
     });
   });
 });
