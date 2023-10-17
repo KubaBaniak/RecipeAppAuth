@@ -1,0 +1,120 @@
+version: 2.1
+orbs:
+
+defaults: &defaults
+  working_directory: ~/repo
+  docker:
+    - image: cimg/node:18.16.0
+    - image: cimg/postgres:14.1
+
+commands:
+  install_dependencies:
+    steps:
+      - run:
+          name: Install node dependencies from package-lock
+          command: npm ci
+  setup_prisma:
+    steps:
+      - run:
+          name: Generate prisma model
+          command: npx prisma generate
+      - run:
+          name: Generate and apply migration
+          command: npx prisma migrate dev
+  create_envs:
+    steps:
+      - run:
+          name: Create .env file
+          command: |
+            cat > .env \<< EOF
+            APP_IMAGE_NAME="$APP_IMAGE_NAME"
+            BCRYPT_SALT_ROUNDS="$BCRYPT_SALT_ROUNDS"
+            DATABASE_URL="$DATABASE_URL"
+            JWT_EXPIRY_TIME="$JWT_EXPIRY_TIME"
+            JWT_SECRET="$JWT_SECRET"
+            EOF
+            cat .env > test.env
+
+jobs:
+  setup_project:
+    <<: *defaults
+    resource_class: small
+    steps:
+      - checkout
+      - restore_cache:
+          key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
+      - install_dependencies
+      - save_cache:
+          paths:
+            - './node_modules'
+          key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
+
+  unit_test:
+    <<: *defaults
+    resource_class: small
+    parallelism: 2
+    steps:
+      - checkout
+      - restore_cache:
+          key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
+      - create_envs
+      - setup_remote_docker:
+          version: 20.10.14
+      - setup_prisma
+      - run:
+          name: Run unit tests
+          command: |
+            UNIT_TEST_FILES=$(circleci tests glob "./src/**/*.spec.ts" | circleci tests split --split-by=timings)
+            npm test -- $UNIT_TEST_FILES
+      - store_test_results:
+          path: ./test_reports
+
+  e2e_test:
+    <<: *defaults
+    resource_class: small
+    parallelism: 2
+    steps:
+      - checkout
+      - restore_cache:
+          key: ${CACHE_VERSION}-deps-{{ checksum "package-lock.json" }}
+      - create_envs
+      - setup_remote_docker:
+          version: 20.10.14
+      - setup_prisma
+      - run:
+          name: Run e2e tests
+          command: |
+            E2E_TEST_FILES=$(circleci tests glob "./test/*{e2e-spec}.ts" | circleci tests split --split-by=timings)
+            npm test -- $E2E_TEST_FILES --config ./test/jest-e2e.json
+      - store_test_results:
+          path: ./test_reports
+
+  release:
+    docker:
+      - image: cimg/node:18.16.0
+    steps:
+      - checkout
+      - install_dependencies
+      - run: HUSKY=0 npx semantic-release
+
+workflows:
+  setup_and_test:
+    jobs:
+      - setup_project:
+          context: recipe-app-auth-test
+      - unit_test:
+          context: recipe-app-auth-test
+          requires:
+            - setup_project
+      - e2e_test:
+          context: recipe-app-auth-test
+          requires:
+            - setup_project
+      - release:
+          requires:
+            - unit_test
+            - e2e_test
+          filters:
+            branches:
+              only:
+                - main
