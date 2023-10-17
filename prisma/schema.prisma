@@ -14,3 +14,8 @@ model UserCredentials {
   userId   Int    @unique
   password String
 }
+
+model PendingUserCredentials {
+  userId   Int    @unique
+  password String
+}

@@ -1,19 +1,23 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { BCRYPT } from './constants';
+import { BCRYPT, EXPIRY_TIMES_OF_SECRETS, SECRETS } from './constants';
 import * as bcrypt from 'bcryptjs';
 import { SignInRequest, SignUpRequest, UserCredentialsRequest } from './dto';
-import { UserCredentialsRepository } from './user-credentials.repository';
+import {
+  UserCredentialsRepository,
+  PendingUserCredentialsRepository,
+} from './repositories';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import 'dotenv/config';
-
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userCredentialsRepository: UserCredentialsRepository,
+    private readonly pendingUserCredentialsRepository: PendingUserCredentialsRepository,
     private readonly jwtService: JwtService,
   ) {}
   async generateToken(
@@ -34,22 +38,26 @@ export class AuthService {
   async signUp(signUpRequest: SignUpRequest): Promise<number> {
     const { userId, password } = signUpRequest;
 
-    const isUserInDb =
-      await this.userCredentialsRepository.getUserCredentialsByUserId(userId);
+    const [pendingUserCredentials, userCredentials] = await Promise.all([
+      this.pendingUserCredentialsRepository.getPendingUserCredentialsById(
+        userId,
+      ),
+      this.userCredentialsRepository.getUserCredentialsByUserId(userId),
+    ]);
 
-    if (isUserInDb) {
+    if (pendingUserCredentials || userCredentials) {
       throw new ConflictException();
     }
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT.SALT);
 
-    const userCredentials =
+    const savedCredentials =
       await this.userCredentialsRepository.storeUserCredentials(
         userId,
         hashedPassword,
       );
 
-    return userCredentials.userId;
+    return savedCredentials.userId;
   }
 
   async signIn(signInRequest: SignInRequest): Promise<string> {
@@ -64,8 +72,8 @@ export class AuthService {
 
     return this.generateToken(
       signInRequest.userId,
-      process.env.JWT_SECRET ?? 'Default_jwt_secret',
-      process.env.JWT_EXPIRY_TIME ?? '1h',
+      SECRETS.AUTH,
+      EXPIRY_TIMES_OF_SECRETS.AUTH,
     );
   }
 
@@ -89,5 +97,45 @@ export class AuthService {
     }
 
     return userCredentials.userId;
+  }
+
+  async verifyAccountActivationToken(
+    jwtToken: string,
+  ): Promise<{ id: number }> {
+    const invalidTokenMessage =
+      'Invalid token. Please provide a valid token to activate account';
+
+    try {
+      return this.jwtService.verifyAsync(jwtToken, {
+        secret: SECRETS.ACCOUNT_ACTIVATION,
+      });
+    } catch {
+      throw new UnauthorizedException(invalidTokenMessage);
+    }
+  }
+
+  async activateAccount(userId: number): Promise<number> {
+    const userData =
+      await this.pendingUserCredentialsRepository.getPendingUserCredentialsById(
+        userId,
+      );
+
+    if (!userData) {
+      throw new NotFoundException(
+        'User account data for activation was not found. Please ensure you provided correct token or check if User is already activated',
+      );
+    }
+
+    const activatedUserCredentials =
+      await this.pendingUserCredentialsRepository.storePendingUserCredentials(
+        userData.userId,
+        userData.password,
+      );
+
+    await this.pendingUserCredentialsRepository.removePendingUserCredentialsById(
+      userId,
+    );
+
+    return activatedUserCredentials.userId;
   }
 }
