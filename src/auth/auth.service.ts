@@ -88,6 +88,6 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    return request.userId;
+    return userCredentials.userId;
   }
 }

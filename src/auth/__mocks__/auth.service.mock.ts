@@ -8,6 +8,7 @@ export class MockAuthService {
   signIn(): Promise<string> {
     return Promise.resolve(faker.string.sample(64));
   }
+
   generateAccountActivationToken(): string {
     return faker.string.sample(64);
   }

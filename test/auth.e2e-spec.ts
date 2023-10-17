@@ -6,6 +6,9 @@ import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { UserCredentialsRepository } from '../src/auth/user-credentials.repository';
 import { generateUserCredentials } from '../src/auth/test/user-credentials.factory';
+import { faker } from '@faker-js/faker';
+import * as bcrypt from 'bcryptjs';
+import { BCRYPT } from '../src/auth/constants';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
@@ -70,6 +73,53 @@ describe('AuthController (e2e)', () => {
         .set('Accept', 'application/json')
         .send(userCredentials)
         .expect(HttpStatus.CONFLICT);
+    });
+  });
+
+  describe('POST /auth/signin', () => {
+    it(`should return access token`, async () => {
+      const userCredentials = generateUserCredentials();
+      const hashedPassword = await bcrypt.hash(
+        userCredentials.password,
+        BCRYPT.SALT,
+      );
+      await prismaService.userCredentials.create({
+        data: {
+          userId: userCredentials.userId,
+          password: hashedPassword,
+        },
+      });
+      return request(app.getHttpServer())
+        .post('/auth/signin')
+        .set('Accept', 'application/json')
+        .send(userCredentials)
+        .expect((response: request.Response) => {
+          expect(response.body.accessToken).toBeDefined();
+          expect(typeof response.body.accessToken).toBe('string');
+        })
+        .expect(HttpStatus.OK);
+    });
+
+    it(`should throw 401 - wrong password`, async () => {
+      const userCredentials = generateUserCredentials();
+      await prismaService.userCredentials.create({ data: userCredentials });
+      return request(app.getHttpServer())
+        .post('/auth/signin')
+        .set('Accept', 'application/json')
+        .send({
+          userId: userCredentials.userId,
+          password: faker.internet.password({
+            length: 64,
+          }),
+        })
+        .expect(HttpStatus.UNAUTHORIZED);
+    });
+    it(`should throw 401 - user does not exist`, async () => {
+      return request(app.getHttpServer())
+        .post('/auth/signin')
+        .set('Accept', 'application/json')
+        .send(generateUserCredentials())
+        .expect(HttpStatus.UNAUTHORIZED);
     });
   });
 });

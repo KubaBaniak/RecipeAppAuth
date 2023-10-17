@@ -37,4 +37,21 @@ describe('AuthController', () => {
       expect(signedUpUser.userId).toEqual(request.userId);
     });
   });
+
+  describe('SignIn', () => {
+    it('should sign in / authenticate user', async () => {
+      //given
+      const request = {
+        userId: faker.number.int(),
+        password: faker.internet.password({ length: 64 }),
+      };
+
+      //when
+      const { accessToken } = await authController.signIn(request);
+
+      //then
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
+    });
+  });
 });
