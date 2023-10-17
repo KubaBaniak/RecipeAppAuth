@@ -17,7 +17,7 @@ export class PendingUserCredentialsRepository {
       },
     };
 
-    return this.prismaService.userCredentials.create(dataObject);
+    return this.prismaService.pendingUserCredentials.create(dataObject);
   }
 
   async getPendingUserCredentialsById(

@@ -52,7 +52,7 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(password, BCRYPT.SALT);
 
     const savedCredentials =
-      await this.userCredentialsRepository.storeUserCredentials(
+      await this.pendingUserCredentialsRepository.storePendingUserCredentials(
         userId,
         hashedPassword,
       );
@@ -127,7 +127,7 @@ export class AuthService {
     }
 
     const activatedUserCredentials =
-      await this.pendingUserCredentialsRepository.storePendingUserCredentials(
+      await this.userCredentialsRepository.storeUserCredentials(
         userData.userId,
         userData.password,
       );
