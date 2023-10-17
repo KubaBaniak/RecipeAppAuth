@@ -6,6 +6,7 @@ import { faker } from '@faker-js/faker';
 import { MAX_INT32 } from '../constants';
 import { UserCredentialsRepository } from '../repositories';
 import { PrismaService } from '../../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -15,6 +16,7 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
+        JwtService,
         UserCredentialsRepository,
         PrismaService,
         {
@@ -41,6 +43,23 @@ describe('AuthController', () => {
 
       //then
       expect(signedUpUser.userId).toEqual(request.userId);
+    });
+  });
+
+  describe('SignIn', () => {
+    it('should sign in / authenticate user', async () => {
+      //given
+      const request = {
+        userId: faker.number.int(),
+        password: faker.internet.password({ length: 64 }),
+      };
+
+      //when
+      const { accessToken } = await authController.signIn(request);
+
+      //then
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
     });
   });
 

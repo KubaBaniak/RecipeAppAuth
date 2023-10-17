@@ -3,8 +3,10 @@ import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
 import { UserCredentialsRepository } from '../repositories';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MAX_INT32 } from '../constants';
 import { MockUserCredentialsRepository } from '../__mocks__';
+import * as bcrypt from 'bcryptjs';
+import { BCRYPT, MAX_INT32 } from '../constants';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -15,6 +17,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         PrismaService,
+        JwtService,
         {
           provide: UserCredentialsRepository,
           useClass: MockUserCredentialsRepository,
@@ -49,6 +52,28 @@ describe('AuthService', () => {
       //then
       expect(typeof userCredentials).toEqual('number');
       expect(userCredentials).toEqual(request.userId);
+    });
+  });
+
+  describe('SignIn', () => {
+    it('should return access token', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        password: await bcrypt.hash(
+          faker.internet.password({ length: 64 }),
+          BCRYPT.SALT,
+        ),
+      };
+      jest
+        .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
+        .mockImplementationOnce(() => Promise.resolve(request));
+
+      //when
+      const accessToken = await authService.signIn(request);
+
+      //then
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
     });
   });
 

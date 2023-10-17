@@ -6,7 +6,7 @@ import { PrismaService } from './../../prisma/prisma.service';
 export class UserCredentialsRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  storeUserCredentials(
+  async storeUserCredentials(
     userId: number,
     password: string,
   ): Promise<UserCredentials> {
