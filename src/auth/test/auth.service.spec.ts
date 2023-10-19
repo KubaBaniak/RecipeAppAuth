@@ -103,10 +103,7 @@ describe('AuthService', () => {
   describe('Activate account', () => {
     it('should activate account', async () => {
       const userId = faker.number.int({ max: MAX_INT32 });
-      jest.spyOn(
-        pendingUserCredentialsRepository,
-        'storePendingUserCredentials',
-      );
+      jest.spyOn(userCredentialsRepository, 'storeUserCredentials');
       jest.spyOn(
         pendingUserCredentialsRepository,
         'getPendingUserCredentialsById',
@@ -121,9 +118,7 @@ describe('AuthService', () => {
       );
 
       expect(typeof activatedUserCredentials).toBe('number');
-      expect(
-        pendingUserCredentialsRepository.storePendingUserCredentials,
-      ).toHaveBeenCalled();
+      expect(userCredentialsRepository.storeUserCredentials).toHaveBeenCalled();
       expect(
         pendingUserCredentialsRepository.getPendingUserCredentialsById,
       ).toHaveBeenCalled();
