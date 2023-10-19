@@ -4,11 +4,14 @@ import { AuthModule } from '../src/auth/auth.module';
 import { AuthService } from '../src/auth/auth.service';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { UserCredentialsRepository } from '../src/auth/user-credentials.repository';
+import {
+  UserCredentialsRepository,
+  TwoFactorAuthRepository,
+} from '../src/auth/repositories';
 import { generateUserCredentials } from '../src/auth/test/user-credentials.factory';
 import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT } from '../src/auth/constants';
+import { BCRYPT, MAX_INT32 } from '../src/auth/constants';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
@@ -22,6 +25,7 @@ describe('AuthController (e2e)', () => {
         JwtService,
         AuthService,
         UserCredentialsRepository,
+        TwoFactorAuthRepository,
         PrismaService,
       ],
     }).compile();
@@ -120,6 +124,22 @@ describe('AuthController (e2e)', () => {
         .set('Accept', 'application/json')
         .send(generateUserCredentials())
         .expect(HttpStatus.UNAUTHORIZED);
+    });
+  });
+
+  describe('POST auth/create-2fa-qrcode', () => {
+    const userId = faker.number.int({ max: MAX_INT32 });
+    it('should create QR code', () => {
+      return request(app.getHttpServer())
+        .post('/auth/create-2fa-qrcode')
+        .set('Accept', 'application/json')
+        .send({ userId })
+        .expect((response: request.Response) => {
+          expect(response.body).toBeDefined();
+          expect(typeof response.body.urlToEnable2FA).toBe('string');
+          expect(typeof response.body.qrCodeUrl).toBe('string');
+        })
+        .expect(HttpStatus.CREATED);
     });
   });
 });

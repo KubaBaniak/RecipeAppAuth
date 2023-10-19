@@ -4,6 +4,12 @@ import { MockAuthService } from '../__mocks__/auth.service.mock';
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { MAX_INT32 } from '../constants';
+import {
+  TwoFactorAuthRepository,
+  UserCredentialsRepository,
+} from '../repositories';
+import { PrismaService } from '../../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -12,6 +18,11 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
+        JwtService,
+        UserCredentialsRepository,
+        TwoFactorAuthRepository,
+        PrismaService,
+        JwtService,
         {
           provide: AuthService,
           useClass: MockAuthService,
@@ -52,6 +63,21 @@ describe('AuthController', () => {
       //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
+    });
+  });
+
+  describe('Two factor authentication', () => {
+    it('should create qrcode for 2fa', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+
+      const qrCodeObject = await authController.create2faQrCode(request);
+
+      //then
+      expect(qrCodeObject).toBeDefined();
+      expect(typeof qrCodeObject.qrCodeUrl).toBe('string');
+      expect(typeof qrCodeObject.urlToEnable2FA).toBe('string');
     });
   });
 });

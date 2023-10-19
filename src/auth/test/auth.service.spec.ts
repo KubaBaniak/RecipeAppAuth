@@ -1,11 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
-import { UserCredentialsRepository } from '../user-credentials.repository';
+import {
+  TwoFactorAuthRepository,
+  UserCredentialsRepository,
+} from '../repositories';
 import * as bcrypt from 'bcryptjs';
 import { BCRYPT, MAX_INT32 } from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MockUserCredentialsRepository } from '../__mocks__';
+import {
+  MockTwoFactorAuthRepository,
+  MockUserCredentialsRepository,
+} from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
@@ -21,6 +27,10 @@ describe('AuthService', () => {
         {
           provide: UserCredentialsRepository,
           useClass: MockUserCredentialsRepository,
+        },
+        {
+          provide: TwoFactorAuthRepository,
+          useClass: MockTwoFactorAuthRepository,
         },
       ],
     }).compile();
@@ -74,6 +84,17 @@ describe('AuthService', () => {
       //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
+    });
+  });
+
+  describe('Two factor authentication', () => {
+    it('should create QR code with secret Key', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const qrCode = await authService.createQrCodeFor2fa(userId);
+
+      expect(qrCode).toBeDefined();
+      expect(typeof qrCode).toBe('string');
     });
   });
 });
