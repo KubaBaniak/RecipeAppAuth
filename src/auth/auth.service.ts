@@ -3,17 +3,23 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { BCRYPT } from './constants';
+import { BCRYPT, SERVICE_NAME } from './constants';
 import * as bcrypt from 'bcryptjs';
 import { SignInRequest, SignUpRequest, UserCredentialsRequest } from './dto';
-import { UserCredentialsRepository } from './user-credentials.repository';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import 'dotenv/config';
+import qrcode from 'qrcode';
+import { authenticator } from 'otplib';
+import {
+  TwoFactorAuthRepository,
+  UserCredentialsRepository,
+} from './repositories';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userCredentialsRepository: UserCredentialsRepository,
+    private readonly twoFactorAuthRepository: TwoFactorAuthRepository,
     private readonly jwtService: JwtService,
   ) {}
   async generateToken(
@@ -89,5 +95,19 @@ export class AuthService {
     }
 
     return userCredentials.userId;
+  }
+
+  async createQrCodeFor2fa(userId: number): Promise<string> {
+    const service = SERVICE_NAME;
+    const secretKey = authenticator.generateSecret();
+
+    const otpauth = authenticator.keyuri(String(userId), service, secretKey);
+
+    await this.twoFactorAuthRepository.save2faSecretKeyForUserWithId(
+      userId,
+      secretKey,
+    );
+
+    return qrcode.toDataURL(otpauth);
   }
 }

@@ -1,6 +1,8 @@
 import { Controller, Body, Post, HttpCode, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
+  Create2faQrCodeRequest,
+  Create2faQrCodeResponse,
   SignInRequest,
   SignInResponse,
   SignUpRequest,
@@ -39,5 +41,21 @@ export class AuthController {
     const accessToken = await this.authService.signIn(signInRequest);
 
     return SignInResponse.from(accessToken);
+  }
+
+  @HttpCode(201)
+  @ApiOperation({
+    summary:
+      'Creates QR code for user to scan it for auth app (like Google Authenticator)',
+  })
+  @Post('create-2fa-qrcode')
+  async create2faQrCode(
+    @Body() create2faQrCodeRequest: Create2faQrCodeRequest,
+  ): Promise<Create2faQrCodeResponse> {
+    const qrCode = await this.authService.createQrCodeFor2fa(
+      create2faQrCodeRequest.userId,
+    );
+
+    return Create2faQrCodeResponse.from(qrCode);
   }
 }
