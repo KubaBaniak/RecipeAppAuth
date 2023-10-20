@@ -6,7 +6,7 @@ import {
   UserCredentialsRepository,
 } from '../repositories';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT, MAX_INT32 } from '../constants';
+import { BCRYPT, MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   MockTwoFactorAuthRepository,
@@ -101,6 +101,39 @@ describe('AuthService', () => {
 
       expect(qrCode).toBeDefined();
       expect(typeof qrCode).toBe('string');
+    });
+
+    it('should enable 2fa', async () => {
+      const twoFactorAuthSecret = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const providedToken = authenticator.generate(twoFactorAuthSecret);
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(
+          create2fa({
+            userId,
+            secretKey: twoFactorAuthSecret,
+            isEnabled: false,
+          }),
+        );
+
+      const recoveryKeys = await authService.enable2fa(userId, providedToken);
+
+      expect(recoveryKeys).toBeDefined();
+      expect(recoveryKeys).toBeInstanceOf(Array<string>);
+      expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
+    });
+
+    it('should disable 2fa', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(create2fa({ userId, isEnabled: true }));
+
+      const twoFactorAuthObject = await authService.disable2fa(userId);
+
+      expect(twoFactorAuthObject).toBeDefined();
+      expect(twoFactorAuthObject.isEnabled).toEqual(false);
     });
 
     it('should verify normal 2fa token', async () => {
