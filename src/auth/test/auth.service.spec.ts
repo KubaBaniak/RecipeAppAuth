@@ -13,10 +13,13 @@ import {
   MockUserCredentialsRepository,
 } from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
+import { authenticator } from 'otplib';
+import { create2fa } from './twoFactorAuth.factory';
 
 describe('AuthService', () => {
   let authService: AuthService;
   let userCredentialsRepository: UserCredentialsRepository;
+  let twoFactorAuthRepository: TwoFactorAuthRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -38,6 +41,9 @@ describe('AuthService', () => {
     authService = module.get<AuthService>(AuthService);
     userCredentialsRepository = module.get<UserCredentialsRepository>(
       UserCredentialsRepository,
+    );
+    twoFactorAuthRepository = module.get<TwoFactorAuthRepository>(
+      TwoFactorAuthRepository,
     );
   });
 
@@ -95,6 +101,22 @@ describe('AuthService', () => {
 
       expect(qrCode).toBeDefined();
       expect(typeof qrCode).toBe('string');
+    });
+
+    it('should verify normal 2fa token', async () => {
+      const twoFactorAuthSecret = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const token = authenticator.generate(twoFactorAuthSecret);
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(
+          create2fa({ userId, secretKey: twoFactorAuthSecret }),
+        );
+
+      const accessToken = await authService.verify2fa(userId, token);
+
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
     });
   });
 });
