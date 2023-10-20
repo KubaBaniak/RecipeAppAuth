@@ -44,4 +44,8 @@ export class MockAuthService extends AuthService {
       isEnabled: true,
     });
   }
+
+  verify2fa(): Promise<string> {
+    return Promise.resolve(faker.string.alphanumeric({ length: 64 }));
+  }
 }

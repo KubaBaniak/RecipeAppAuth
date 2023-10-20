@@ -10,6 +10,7 @@ import {
 } from '../repositories';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { authenticator } from 'otplib';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -104,6 +105,18 @@ describe('AuthController', () => {
       await authController.disable2fa(request);
 
       expect(authServcie.disable2fa).toHaveBeenCalled();
+    });
+
+    it('should verify 2fa token', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        token: authenticator.generate(authenticator.generateSecret()),
+      };
+
+      const { accessToken } = await authController.verify2FA(request);
+
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
     });
   });
 });
