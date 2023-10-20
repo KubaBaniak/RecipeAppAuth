@@ -143,6 +143,8 @@ describe('AuthController (e2e)', () => {
         })
         .expect(HttpStatus.CREATED);
     });
+  });
+  describe('POST auth/enable-2fa', () => {
     it('should enable 2fa', async () => {
       const twoFactorAuth = await prismaService.twoFactorAuth.create({
         data: create2fa(),
@@ -164,6 +166,9 @@ describe('AuthController (e2e)', () => {
         })
         .expect(HttpStatus.OK);
     });
+  });
+
+  describe('POST auth/disable-2fa', () => {
     it('should disable 2fa', async () => {
       const twoFactorAuth = await prismaService.twoFactorAuth.create({
         data: create2fa({ isEnabled: true }),
