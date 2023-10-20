@@ -4,14 +4,17 @@ import { AuthModule } from '../src/auth/auth.module';
 import { AuthService } from '../src/auth/auth.service';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { UserCredentialsRepository } from '../src/auth/repositories';
 import {
   generateUserCredentials,
   generateUserCredentialsWithHashedPassword,
 } from '../src/auth/test/user-credentials.factory';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+} from '../src/auth/repositories';
 import { faker } from '@faker-js/faker';
+import { MAX_INT32, BCRYPT } from '../src/auth/constants';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT } from '../src/auth/constants';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
@@ -22,9 +25,10 @@ describe('AuthController (e2e)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AuthModule],
       providers: [
-        JwtService,
         AuthService,
+        JwtService,
         UserCredentialsRepository,
+        PersonalAccessTokenRepository,
         PrismaService,
       ],
     }).compile();
@@ -125,6 +129,32 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+  describe('POST /auth/create-pat', () => {
+    it(`should create personal access token for user`, async () => {
+      const patCreateRequest = { userId: faker.number.int({ max: MAX_INT32 }) };
+      return request(app.getHttpServer())
+        .post('/auth/create-pat')
+        .set('Accept', 'application/json')
+        .send(patCreateRequest)
+        .expect(async () => {
+          const { userId } = patCreateRequest;
+          const pat = await prismaService.personalAccessTokens.findUnique({
+            where: { userId },
+          });
+          expect(pat).toBeDefined();
+          expect(pat).toEqual(
+            expect.objectContaining({
+              userId,
+              createdAt: expect.any(Date),
+              token: expect.any(String),
+              invalidatedAt: null,
+            }),
+          );
+        })
+        .expect(HttpStatus.CREATED);
+    });
+  });
+
   describe('POST /auth/change-password', () => {
     it(`should change password`, async () => {
       const userCredentials = await generateUserCredentialsWithHashedPassword();
@@ -138,7 +168,7 @@ describe('AuthController (e2e)', () => {
           const result = await prismaService.userCredentials.findUnique({
             where: { userId: userCredentials.userId },
           });
-          if (result && result.password) {
+          if (result?.password) {
             const passwordsMatch = await bcrypt.compare(
               newPassword,
               result.password,

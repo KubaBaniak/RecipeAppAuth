@@ -1,17 +1,20 @@
 import {
   ConflictException,
-  Injectable,
   UnauthorizedException,
+  Injectable,
 } from '@nestjs/common';
-import { BCRYPT } from './constants';
+import { AUTH, BCRYPT } from './constants';
 import * as bcrypt from 'bcryptjs';
-import { UserCredentialsRepository } from './repositories';
 import {
+  ChangePasswordRequest,
   SignInRequest,
   SignUpRequest,
   UserCredentialsRequest,
-  ChangePasswordRequest,
 } from './dto';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+} from './repositories';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import 'dotenv/config';
 
@@ -19,8 +22,10 @@ import 'dotenv/config';
 export class AuthService {
   constructor(
     private readonly userCredentialsRepository: UserCredentialsRepository,
+    private readonly personalAccessTokenRepository: PersonalAccessTokenRepository,
     private readonly jwtService: JwtService,
   ) {}
+
   async generateToken(
     id: number,
     secret: string,
@@ -68,8 +73,8 @@ export class AuthService {
 
     return this.generateToken(
       signInRequest.userId,
-      process.env.JWT_SECRET ?? 'Default_jwt_secret',
-      process.env.JWT_EXPIRY_TIME ?? '1h',
+      AUTH.AUTH_TOKEN,
+      AUTH.AUTH_TOKEN_EXPIRY_TIME,
     );
   }
 
@@ -94,6 +99,24 @@ export class AuthService {
 
     return userCredentials.userId;
   }
+
+  async createPersonalAccessToken(userId: number): Promise<string> {
+    const validPersonalAccessToken =
+      await this.personalAccessTokenRepository.getValidPatForUserId(userId);
+
+    if (validPersonalAccessToken) {
+      this.personalAccessTokenRepository.invalidatePatForUserId(userId);
+    }
+
+    const personalAccessToken = await this.generateToken(userId, AUTH.PAT);
+    const { token } =
+      await this.personalAccessTokenRepository.savePersonalAccessToken(
+        userId,
+        personalAccessToken,
+      );
+    return token;
+  }
+
   async changePassword(
     changePasswordRequest: ChangePasswordRequest,
   ): Promise<number> {
