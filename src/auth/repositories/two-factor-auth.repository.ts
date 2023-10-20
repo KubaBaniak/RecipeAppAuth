@@ -88,6 +88,7 @@ export class TwoFactorAuthRepository {
     return this.prismaService.twoFactorAuthRecoveryKey.update({
       data: {
         isUsed: true,
+        usedAt: new Date(),
       },
       where: {
         key,

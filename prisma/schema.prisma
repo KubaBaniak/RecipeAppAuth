@@ -26,6 +26,6 @@ model TwoFactorAuthRecoveryKey {
   key                 String         @unique 
   isUsed              Boolean        @default(false)
   usedAt              DateTime?
-  twoFactorAuthUserId Int            @unique
+  twoFactorAuthUserId Int            
   TwoFactorAuth       TwoFactorAuth? @relation(fields: [twoFactorAuthUserId], references: [userId], onDelete: Cascade, onUpdate: Cascade)
 }

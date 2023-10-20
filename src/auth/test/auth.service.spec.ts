@@ -14,7 +14,10 @@ import {
 } from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
 import { authenticator } from 'otplib';
-import { create2fa } from './twoFactorAuth.factory';
+import {
+  create2fa,
+  createRecoveryKeysWithKeyAndIsUsed,
+} from './twoFactorAuth.factory';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -143,13 +146,47 @@ describe('AuthService', () => {
       jest
         .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
         .mockResolvedValueOnce(
-          create2fa({ userId, secretKey: twoFactorAuthSecret }),
+          create2fa({
+            userId,
+            secretKey: twoFactorAuthSecret,
+            isEnabled: true,
+          }),
         );
 
       const accessToken = await authService.verify2fa(userId, token);
 
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
+    });
+    it('should verify 2fa recovery token', async () => {
+      const twoFactorAuthSecret = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const recoveryKeys =
+        createRecoveryKeysWithKeyAndIsUsed(twoFactorAuthSecret);
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(
+          create2fa({
+            userId,
+            secretKey: twoFactorAuthSecret,
+            isEnabled: true,
+          }),
+        );
+      jest
+        .spyOn(twoFactorAuthRepository, 'getRecoveryKeysForUserWithId')
+        .mockResolvedValueOnce(
+          createRecoveryKeysWithKeyAndIsUsed(twoFactorAuthSecret),
+        );
+      jest.spyOn(twoFactorAuthRepository, 'expire2faRecoveryKey');
+
+      const accessToken = await authService.verify2fa(
+        userId,
+        recoveryKeys[0].key,
+      );
+
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
+      expect(twoFactorAuthRepository.expire2faRecoveryKey).toHaveBeenCalled();
     });
   });
 });

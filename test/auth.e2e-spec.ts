@@ -14,7 +14,10 @@ import * as bcrypt from 'bcryptjs';
 import { BCRYPT, MAX_INT32 } from '../src/auth/constants';
 import { JwtService } from '@nestjs/jwt';
 import { authenticator } from 'otplib';
-import { create2fa } from '../src/auth/test/twoFactorAuth.factory';
+import {
+  create2fa,
+  createRecoveryKeys,
+} from '../src/auth/test/twoFactorAuth.factory';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -120,6 +123,7 @@ describe('AuthController (e2e)', () => {
         })
         .expect(HttpStatus.UNAUTHORIZED);
     });
+
     it(`should throw 401 - user does not exist`, async () => {
       return request(app.getHttpServer())
         .post('/auth/signin')
@@ -143,6 +147,7 @@ describe('AuthController (e2e)', () => {
         })
         .expect(HttpStatus.CREATED);
     });
+
     it('should enable 2fa', async () => {
       const twoFactorAuth = await prismaService.twoFactorAuth.create({
         data: create2fa(),
@@ -164,6 +169,7 @@ describe('AuthController (e2e)', () => {
         })
         .expect(HttpStatus.OK);
     });
+
     it('should disable 2fa', async () => {
       const twoFactorAuth = await prismaService.twoFactorAuth.create({
         data: create2fa({ isEnabled: true }),
@@ -181,6 +187,57 @@ describe('AuthController (e2e)', () => {
             },
           });
           expect(enabled2fa?.isEnabled).toEqual(false);
+        })
+        .expect(HttpStatus.OK);
+    });
+  });
+
+  describe('POST /auth/verify-2fa', () => {
+    it('should verify normal 2fa token', async () => {
+      const secret2fa = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const twoFactorAuth = await prismaService.twoFactorAuth.create({
+        data: create2fa({ isEnabled: true, secretKey: secret2fa, userId }),
+      });
+      return request(app.getHttpServer())
+        .post('/auth/verify-2fa')
+        .set('Accept', 'application/json')
+        .send({
+          userId: twoFactorAuth.userId,
+          token: authenticator.generate(secret2fa),
+        })
+        .expect((response: request.Response) => {
+          expect(response.body.accessToken).toBeDefined();
+          expect(typeof response.body.accessToken).toBe('string');
+        })
+        .expect(HttpStatus.OK);
+    });
+
+    it('should verify 2fa recovery token', async () => {
+      const secret2fa = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const twoFactorAuth = await prismaService.twoFactorAuth.create({
+        data: create2fa({ isEnabled: true, secretKey: secret2fa, userId }),
+      });
+      await prismaService.twoFactorAuthRecoveryKey.createMany({
+        data: createRecoveryKeys({
+          twoFactorAuthUserId: twoFactorAuth.userId,
+        }),
+      });
+      const recoveryKey =
+        await prismaService.twoFactorAuthRecoveryKey.findFirst({
+          where: { twoFactorAuthUserId: userId },
+        });
+      return request(app.getHttpServer())
+        .post('/auth/verify-2fa')
+        .set('Accept', 'application/json')
+        .send({
+          userId: twoFactorAuth.userId,
+          token: recoveryKey?.key,
+        })
+        .expect((response: request.Response) => {
+          expect(response.body.accessToken).toBeDefined();
+          expect(typeof response.body.accessToken).toBe('string');
         })
         .expect(HttpStatus.OK);
     });

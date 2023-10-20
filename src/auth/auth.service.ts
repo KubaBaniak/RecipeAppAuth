@@ -169,17 +169,20 @@ export class AuthService {
     const keys =
       await this.twoFactorAuthRepository.getRecoveryKeysForUserWithId(userId);
 
-    if (twoFactorAuth)
-      if (authenticator.check(token, twoFactorAuth?.secretKey)) {
-        return this.generateToken(
-          userId,
-          process.env.JWT_SECRET ?? 'Default_jwt_secret',
-          process.env.JWT_EXPIRY_TIME ?? '1h',
-        );
-      }
+    if (!twoFactorAuth || !twoFactorAuth.isEnabled) {
+      throw new ForbiddenException('2FA is not enabled');
+    }
 
     if (keys?.some(({ key, isUsed }) => key === token && !isUsed)) {
       await this.twoFactorAuthRepository.expire2faRecoveryKey(token);
+      return this.generateToken(
+        userId,
+        process.env.JWT_SECRET ?? 'Default_jwt_secret',
+        process.env.JWT_EXPIRY_TIME ?? '1h',
+      );
+    }
+
+    if (authenticator.check(token, twoFactorAuth?.secretKey)) {
       return this.generateToken(
         userId,
         process.env.JWT_SECRET ?? 'Default_jwt_secret',
