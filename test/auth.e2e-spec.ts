@@ -13,6 +13,8 @@ import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcryptjs';
 import { BCRYPT, MAX_INT32 } from '../src/auth/constants';
 import { JwtService } from '@nestjs/jwt';
+import { authenticator } from 'otplib';
+import { create2fa } from '../src/auth/test/twoFactorAuth.factory';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -128,8 +130,8 @@ describe('AuthController (e2e)', () => {
   });
 
   describe('POST auth/create-2fa-qrcode', () => {
-    const userId = faker.number.int({ max: MAX_INT32 });
     it('should create QR code', () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
       return request(app.getHttpServer())
         .post('/auth/create-2fa-qrcode')
         .set('Accept', 'application/json')
@@ -140,6 +142,47 @@ describe('AuthController (e2e)', () => {
           expect(typeof response.body.qrCodeUrl).toBe('string');
         })
         .expect(HttpStatus.CREATED);
+    });
+    it('should enable 2fa', async () => {
+      const twoFactorAuth = await prismaService.twoFactorAuth.create({
+        data: create2fa(),
+      });
+      return request(app.getHttpServer())
+        .post('/auth/enable-2fa')
+        .set('Accept', 'application/json')
+        .send({
+          userId: twoFactorAuth.userId,
+          token: authenticator.generate(twoFactorAuth.secretKey),
+        })
+        .expect(async () => {
+          const enabled2fa = await prismaService.twoFactorAuth.findUnique({
+            where: {
+              userId: twoFactorAuth.userId,
+            },
+          });
+          expect(enabled2fa?.isEnabled).toEqual(true);
+        })
+        .expect(HttpStatus.OK);
+    });
+    it('should disable 2fa', async () => {
+      const twoFactorAuth = await prismaService.twoFactorAuth.create({
+        data: create2fa({ isEnabled: true }),
+      });
+      return request(app.getHttpServer())
+        .post('/auth/disable-2fa')
+        .set('Accept', 'application/json')
+        .send({
+          userId: twoFactorAuth.userId,
+        })
+        .expect(async () => {
+          const enabled2fa = await prismaService.twoFactorAuth.findUnique({
+            where: {
+              userId: twoFactorAuth.userId,
+            },
+          });
+          expect(enabled2fa?.isEnabled).toEqual(false);
+        })
+        .expect(HttpStatus.OK);
     });
   });
 });

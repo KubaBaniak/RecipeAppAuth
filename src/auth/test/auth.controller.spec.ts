@@ -3,7 +3,7 @@ import { AuthService } from '../auth.service';
 import { MockAuthService } from '../__mocks__/auth.service.mock';
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
-import { MAX_INT32 } from '../constants';
+import { MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
 import {
   TwoFactorAuthRepository,
   UserCredentialsRepository,
@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController', () => {
   let authController: AuthController;
+  let authServcie: AuthService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -31,6 +32,7 @@ describe('AuthController', () => {
     }).compile();
 
     authController = module.get<AuthController>(AuthController);
+    authServcie = module.get<AuthService>(AuthService);
   });
 
   describe('SignUp', () => {
@@ -78,6 +80,30 @@ describe('AuthController', () => {
       expect(qrCodeObject).toBeDefined();
       expect(typeof qrCodeObject.qrCodeUrl).toBe('string');
       expect(typeof qrCodeObject.urlToEnable2FA).toBe('string');
+    });
+
+    it('should enable 2fa', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        token: faker.string.alphanumeric({ length: 64 }),
+      };
+
+      const { recoveryKeys } = await authController.enable2FA(request);
+
+      expect(recoveryKeys).toBeDefined();
+      expect(recoveryKeys).toBeInstanceOf(Array<string>);
+      expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
+    });
+
+    it('should disable 2fa', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+      jest.spyOn(authServcie, 'disable2fa');
+
+      await authController.disable2fa(request);
+
+      expect(authServcie.disable2fa).toHaveBeenCalled();
     });
   });
 });
