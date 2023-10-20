@@ -130,12 +130,10 @@ describe('AuthService', () => {
         .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
         .mockResolvedValueOnce(create2fa({ userId, isEnabled: true }));
 
-      await authService.disable2fa(userId);
+      const twoFactorAuthObject = await authService.disable2fa(userId);
 
-      expect(twoFactorAuthRepository.get2faForUserWithId).toHaveBeenCalled();
-      expect(
-        twoFactorAuthRepository.disable2faForUserWithId,
-      ).toHaveBeenCalled();
+      expect(twoFactorAuthObject).toBeDefined();
+      expect(twoFactorAuthObject.isEnabled).toEqual(false);
     });
   });
 });
