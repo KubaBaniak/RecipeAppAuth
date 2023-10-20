@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TwoFactorAuth } from '@prisma/client';
+import { TwoFactorAuth, TwoFactorAuthRecoveryKey } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -68,5 +68,30 @@ export class TwoFactorAuthRepository {
         },
       });
     }
+  }
+
+  getRecoveryKeysForUserWithId(
+    userId: number,
+  ): Promise<{ key: string; isUsed: boolean }[] | null> {
+    return this.prismaService.twoFactorAuthRecoveryKey.findMany({
+      where: {
+        twoFactorAuthUserId: userId,
+      },
+      select: {
+        key: true,
+        isUsed: true,
+      },
+    });
+  }
+
+  expire2faRecoveryKey(key: string): Promise<TwoFactorAuthRecoveryKey> {
+    return this.prismaService.twoFactorAuthRecoveryKey.update({
+      data: {
+        isUsed: true,
+      },
+      where: {
+        key,
+      },
+    });
   }
 }

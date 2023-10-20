@@ -8,3 +8,4 @@ export * from './create-2fa-qrcode-request';
 export * from './enable-2fa-request';
 export * from './disable-2fa-request';
 export * from './recovery-keys-response';
+export * from './verify-2fa-request';
