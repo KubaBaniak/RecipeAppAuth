@@ -13,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 describe('AuthController', () => {
   let authController: AuthController;
+  let authService: AuthService;
   let jwtService: JwtService;
 
   beforeEach(async () => {
@@ -31,6 +32,7 @@ describe('AuthController', () => {
     }).compile();
 
     authController = module.get<AuthController>(AuthController);
+    authService = module.get<AuthService>(AuthService);
     jwtService = module.get<JwtService>(JwtService);
   });
 
@@ -85,6 +87,20 @@ describe('AuthController', () => {
         id: request.userId,
         iat: expect.any(Number),
       });
+    });
+  });
+
+  describe('Change password', () => {
+    it('should change password', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        newPassword: faker.internet.password(),
+      };
+      jest.spyOn(authService, 'changePassword');
+
+      await authController.changePassword(request);
+
+      expect(authService.changePassword).toHaveBeenCalled();
     });
   });
 });

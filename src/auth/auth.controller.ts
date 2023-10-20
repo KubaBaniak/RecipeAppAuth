@@ -1,12 +1,13 @@
 import { Controller, Body, Post, HttpCode, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
-  SignUpRequest,
-  SignUpResponse,
-  SignInRequest,
-  SignInResponse,
+  ChangePasswordRequest,
   CreatePatRequest,
   CreatePatResponse,
+  SignInRequest,
+  SignInResponse,
+  SignUpRequest,
+  SignUpResponse,
 } from './dto';
 import {
   ApiTags,
@@ -52,5 +53,14 @@ export class AuthController {
       await this.authService.createPersonalAccessToken(createPatRequest.userId);
 
     return CreatePatResponse.from(personalAccessToken);
+  }
+
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Changes password of the user' })
+  @Post('change-password')
+  async changePassword(
+    @Body() changePasswordRequest: ChangePasswordRequest,
+  ): Promise<void> {
+    await this.authService.changePassword(changePasswordRequest);
   }
 }

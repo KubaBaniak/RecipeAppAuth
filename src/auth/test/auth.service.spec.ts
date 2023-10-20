@@ -98,4 +98,18 @@ describe('AuthService', () => {
       expect(typeof personalAccessToken).toBe('string');
     });
   });
+
+  describe('Change password', () => {
+    it('should change password', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        newPassword: faker.internet.password(),
+      };
+
+      const userId = await authService.changePassword(request);
+
+      expect(typeof userId).toEqual('number');
+      expect(userId).toEqual(request.userId);
+    });
+  });
 });

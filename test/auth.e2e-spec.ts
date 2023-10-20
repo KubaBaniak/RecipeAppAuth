@@ -5,10 +5,13 @@ import { AuthService } from '../src/auth/auth.service';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
+  generateUserCredentials,
+  generateUserCredentialsWithHashedPassword,
+} from '../src/auth/test/user-credentials.factory';
+import {
   PersonalAccessTokenRepository,
   UserCredentialsRepository,
 } from '../src/auth/repositories';
-import { generateUserCredentials } from '../src/auth/test/user-credentials.factory';
 import { faker } from '@faker-js/faker';
 import { MAX_INT32, BCRYPT } from '../src/auth/constants';
 import * as bcrypt from 'bcryptjs';
@@ -47,7 +50,6 @@ describe('AuthController (e2e)', () => {
 
   afterAll(async () => {
     await prismaService.userCredentials.deleteMany();
-    await prismaService.$disconnect();
     await app.close();
   });
 
@@ -150,6 +152,31 @@ describe('AuthController (e2e)', () => {
           );
         })
         .expect(HttpStatus.CREATED);
+    });
+  });
+
+  describe('POST /auth/change-password', () => {
+    it(`should change password`, async () => {
+      const userCredentials = await generateUserCredentialsWithHashedPassword();
+      await prismaService.userCredentials.create({ data: userCredentials });
+      const newPassword = faker.internet.password({ length: 64 });
+      return request(app.getHttpServer())
+        .post('/auth/change-password')
+        .set('Accept', 'application/json')
+        .send({ userId: userCredentials.userId, newPassword })
+        .expect(async () => {
+          const result = await prismaService.userCredentials.findUnique({
+            where: { userId: userCredentials.userId },
+          });
+          if (result?.password) {
+            const passwordsMatch = await bcrypt.compare(
+              newPassword,
+              result.password,
+            );
+            expect(passwordsMatch).toBe(true);
+          }
+        })
+        .expect(HttpStatus.OK);
     });
   });
 });

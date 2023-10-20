@@ -1,7 +1,8 @@
 import { faker } from '@faker-js/faker';
 import { UserCredentialsRepository } from '../repositories';
 import { UserCredentials } from '@prisma/client';
-import { MAX_INT32 } from '../constants';
+import * as bcrypt from 'bcryptjs';
+import { BCRYPT } from '../constants';
 
 export class MockUserCredentialsRepository extends UserCredentialsRepository {
   storeUserCredentials(
@@ -11,10 +12,20 @@ export class MockUserCredentialsRepository extends UserCredentialsRepository {
     return Promise.resolve({ userId, password });
   }
 
-  async getUserCredentialsByUserId(): Promise<UserCredentials | null> {
+  async getUserCredentialsByUserId(userId: number): Promise<UserCredentials> {
     return Promise.resolve({
-      userId: faker.number.int({ max: MAX_INT32 }),
+      userId,
       password: faker.internet.password({ length: 64 }),
+    });
+  }
+
+  async updateUserPasswordByUserId(
+    userId: number,
+    newPassword: string,
+  ): Promise<UserCredentials> {
+    return Promise.resolve({
+      userId,
+      password: await bcrypt.hash(newPassword, BCRYPT.SALT),
     });
   }
 }

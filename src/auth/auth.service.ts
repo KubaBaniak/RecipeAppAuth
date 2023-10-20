@@ -6,13 +6,17 @@ import {
 import { AUTH, BCRYPT } from './constants';
 import * as bcrypt from 'bcryptjs';
 import {
+  ChangePasswordRequest,
+  SignInRequest,
+  SignUpRequest,
+  UserCredentialsRequest,
+} from './dto';
+import {
   PersonalAccessTokenRepository,
   UserCredentialsRepository,
 } from './repositories';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import 'dotenv/config';
-
-import { SignInRequest, SignUpRequest, UserCredentialsRequest } from './dto';
 
 @Injectable()
 export class AuthService {
@@ -57,7 +61,6 @@ export class AuthService {
 
     return userCredentials.userId;
   }
-
   async signIn(signInRequest: SignInRequest): Promise<string> {
     const userCredentials =
       await this.userCredentialsRepository.getUserCredentialsByUserId(
@@ -112,5 +115,20 @@ export class AuthService {
         personalAccessToken,
       );
     return token;
+  }
+
+  async changePassword(
+    changePasswordRequest: ChangePasswordRequest,
+  ): Promise<number> {
+    const { userId, newPassword } = changePasswordRequest;
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT.SALT);
+
+    const updatedCredentials =
+      await this.userCredentialsRepository.updateUserPasswordByUserId(
+        userId,
+        hashedPassword,
+      );
+
+    return updatedCredentials.userId;
   }
 }
