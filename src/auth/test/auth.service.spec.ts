@@ -6,17 +6,20 @@ import {
   UserCredentialsRepository,
 } from '../repositories';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT, MAX_INT32 } from '../constants';
+import { BCRYPT, MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   MockTwoFactorAuthRepository,
   MockUserCredentialsRepository,
 } from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
+import { authenticator } from 'otplib';
+import { create2fa } from './twoFactorAuth.factory';
 
 describe('AuthService', () => {
   let authService: AuthService;
   let userCredentialsRepository: UserCredentialsRepository;
+  let twoFactorAuthRepository: TwoFactorAuthRepository;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -38,6 +41,9 @@ describe('AuthService', () => {
     authService = module.get<AuthService>(AuthService);
     userCredentialsRepository = module.get<UserCredentialsRepository>(
       UserCredentialsRepository,
+    );
+    twoFactorAuthRepository = module.get<TwoFactorAuthRepository>(
+      TwoFactorAuthRepository,
     );
   });
 
@@ -95,6 +101,41 @@ describe('AuthService', () => {
 
       expect(qrCode).toBeDefined();
       expect(typeof qrCode).toBe('string');
+    });
+
+    it('should enable 2fa', async () => {
+      const twoFactorAuthSecret = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const providedToken = authenticator.generate(twoFactorAuthSecret);
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(
+          create2fa({
+            userId,
+            secretKey: twoFactorAuthSecret,
+            isEnabled: false,
+          }),
+        );
+
+      const recoveryKeys = await authService.enable2fa(userId, providedToken);
+
+      expect(recoveryKeys).toBeDefined();
+      expect(recoveryKeys).toBeInstanceOf(Array<string>);
+      expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
+    });
+
+    it('should disable 2fa', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(create2fa({ userId, isEnabled: true }));
+
+      await authService.disable2fa(userId);
+
+      expect(twoFactorAuthRepository.get2faForUserWithId).toHaveBeenCalled();
+      expect(
+        twoFactorAuthRepository.disable2faForUserWithId,
+      ).toHaveBeenCalled();
     });
   });
 });
