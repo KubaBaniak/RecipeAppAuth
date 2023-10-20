@@ -19,4 +19,54 @@ export class TwoFactorAuthRepository {
 
     return this.prismaService.twoFactorAuth.create(dataObject);
   }
+
+  get2faForUserWithId(userId: number): Promise<TwoFactorAuth | null> {
+    const queryObject = {
+      where: {
+        userId,
+      },
+    };
+
+    return this.prismaService.twoFactorAuth.findUnique(queryObject);
+  }
+
+  enable2faForUserWithId(userId: number): Promise<TwoFactorAuth> {
+    const queryObject = {
+      where: {
+        userId,
+      },
+      data: {
+        isEnabled: true,
+      },
+    };
+
+    return this.prismaService.twoFactorAuth.update(queryObject);
+  }
+
+  disable2faForUserWithId(userId: number): Promise<TwoFactorAuth> {
+    const queryObject = {
+      where: {
+        userId,
+      },
+      data: {
+        isEnabled: false,
+      },
+    };
+
+    return this.prismaService.twoFactorAuth.update(queryObject);
+  }
+
+  async saveRecoveryKeysForUserWithId(
+    userId: number,
+    recoveryKeys: { key: string }[],
+  ): Promise<void> {
+    for await (const { key } of recoveryKeys) {
+      this.prismaService.twoFactorAuthRecoveryKey.create({
+        data: {
+          twoFactorAuthUserId: userId,
+          key,
+        },
+      });
+    }
+  }
 }

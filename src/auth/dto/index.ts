@@ -5,3 +5,6 @@ export * from './sign-in-request';
 export * from './user-credentials-request';
 export * from './create-2fa-qrcode-response';
 export * from './create-2fa-qrcode-request';
+export * from './enable-2fa-request';
+export * from './disable-2fa-request';
+export * from './recovery-keys-response';

@@ -3,6 +3,9 @@ import { AuthService } from './auth.service';
 import {
   Create2faQrCodeRequest,
   Create2faQrCodeResponse,
+  Disable2faRequest,
+  Enable2faRequest,
+  RecoveryKeysRespnse,
   SignInRequest,
   SignInResponse,
   SignUpRequest,
@@ -57,5 +60,30 @@ export class AuthController {
     );
 
     return Create2faQrCodeResponse.from(qrCode);
+  }
+
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Enables 2FA authentication for user',
+  })
+  @Post('enable-2fa')
+  async enable2FA(
+    @Body() enable2faRequest: Enable2faRequest,
+  ): Promise<RecoveryKeysRespnse> {
+    const recoveryKey = await this.authService.enable2fa(
+      enable2faRequest.userId,
+      enable2faRequest.token,
+    );
+
+    return RecoveryKeysRespnse.from(recoveryKey);
+  }
+
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Disables 2FA for logged user' })
+  @Post('disable-2fa')
+  async disable2fa(
+    @Body() disable2faRequest: Disable2faRequest,
+  ): Promise<void> {
+    await this.authService.disable2fa(disable2faRequest.userId);
   }
 }
