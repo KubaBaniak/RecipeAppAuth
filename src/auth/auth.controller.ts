@@ -1,10 +1,12 @@
 import { Controller, Body, Post, HttpCode, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
-  SignInRequest,
-  SignInResponse,
   SignUpRequest,
   SignUpResponse,
+  SignInRequest,
+  SignInResponse,
+  CreatePatRequest,
+  CreatePatResponse,
 } from './dto';
 import {
   ApiTags,
@@ -30,7 +32,6 @@ export class AuthController {
     const userId = await this.authService.signUp(signUpRequest);
     return { userId };
   }
-
   @HttpCode(200)
   @UseGuards(LocalAuthGuard)
   @ApiOperation({ summary: 'Authenticate user' })
@@ -39,5 +40,17 @@ export class AuthController {
     const accessToken = await this.authService.signIn(signInRequest);
 
     return SignInResponse.from(accessToken);
+  }
+
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Add personal access token for user' })
+  @Post('create-pat')
+  async createPat(
+    @Body() createPatRequest: CreatePatRequest,
+  ): Promise<CreatePatResponse> {
+    const personalAccessToken =
+      await this.authService.createPersonalAccessToken(createPatRequest.userId);
+
+    return CreatePatResponse.from(personalAccessToken);
   }
 }

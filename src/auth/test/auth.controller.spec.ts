@@ -3,15 +3,26 @@ import { AuthService } from '../auth.service';
 import { MockAuthService } from '../__mocks__/auth.service.mock';
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
-import { MAX_INT32 } from '../constants';
+import { AUTH, MAX_INT32 } from '../constants';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+} from '../repositories';
+import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('AuthController', () => {
   let authController: AuthController;
+  let jwtService: JwtService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
+        PrismaService,
+        UserCredentialsRepository,
+        PersonalAccessTokenRepository,
+        JwtService,
         {
           provide: AuthService,
           useClass: MockAuthService,
@@ -20,6 +31,7 @@ describe('AuthController', () => {
     }).compile();
 
     authController = module.get<AuthController>(AuthController);
+    jwtService = module.get<JwtService>(JwtService);
   });
 
   describe('SignUp', () => {
@@ -52,6 +64,27 @@ describe('AuthController', () => {
       //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
+    });
+  });
+
+  describe('Personal access token', () => {
+    it('should create personal access token', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+
+      const createPatResponse = await authController.createPat(request);
+
+      expect(createPatResponse).toBeDefined();
+      expect(typeof createPatResponse.personalAccessToken).toBe('string');
+      expect(
+        jwtService.verify(createPatResponse.personalAccessToken, {
+          secret: AUTH.PAT,
+        }),
+      ).toEqual({
+        id: request.userId,
+        iat: expect.any(Number),
+      });
     });
   });
 });

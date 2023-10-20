@@ -1,10 +1,21 @@
+import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../auth.service';
+import { AUTH, MAX_INT32 } from '../constants';
 import { SignUpRequest } from '../dto';
 import { faker } from '@faker-js/faker';
 
-export class MockAuthService {
-  signUp(signUpRequest: SignUpRequest): number {
-    return signUpRequest.userId;
+export class MockAuthService extends AuthService {
+  signUp(signUpRequest: SignUpRequest): Promise<number> {
+    return Promise.resolve(signUpRequest.userId);
   }
+
+  createPersonalAccessToken(userId: number): Promise<string> {
+    const jwtService = new JwtService();
+    return Promise.resolve(
+      jwtService.sign({ id: userId }, { secret: AUTH.PAT }),
+    );
+  }
+
   signIn(): Promise<string> {
     return Promise.resolve(faker.string.sample(64));
   }
@@ -13,11 +24,7 @@ export class MockAuthService {
     return faker.string.sample(64);
   }
 
-  verifyAccountActivationToken(): Promise<{ id: number }> {
-    return Promise.resolve({ id: faker.number.int() });
-  }
-
-  validateUser(): Promise<void> {
-    return Promise.resolve();
+  validateUser(): Promise<number> {
+    return Promise.resolve(faker.number.int({ max: MAX_INT32 }));
   }
 }

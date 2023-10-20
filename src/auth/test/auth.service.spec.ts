@@ -1,11 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
-import { UserCredentialsRepository } from '../user-credentials.repository';
-import * as bcrypt from 'bcryptjs';
-import { BCRYPT, MAX_INT32 } from '../constants';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+} from '../repositories';
 import { MockUserCredentialsRepository } from '../__mocks__';
+import { PrismaService } from '../../prisma/prisma.service';
+import { BCRYPT, MAX_INT32 } from '../constants';
+import { MockPatRepository } from '../__mocks__';
+import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
@@ -16,8 +20,13 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        PrismaService,
         JwtService,
+        PrismaService,
+        UserCredentialsRepository,
+        {
+          provide: PersonalAccessTokenRepository,
+          useClass: MockPatRepository,
+        },
         {
           provide: UserCredentialsRepository,
           useClass: MockUserCredentialsRepository,
@@ -74,6 +83,19 @@ describe('AuthService', () => {
       //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
+    });
+  });
+
+  describe('Personal access token', () => {
+    it('should create personal access token', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const personalAccessToken = await authService.createPersonalAccessToken(
+        userId,
+      );
+
+      expect(personalAccessToken).toBeDefined();
+      expect(typeof personalAccessToken).toBe('string');
     });
   });
 });
