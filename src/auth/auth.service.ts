@@ -3,7 +3,7 @@ import {
   UnauthorizedException,
   Injectable,
 } from '@nestjs/common';
-import { BCRYPT, EXPIRY_TIMES_OF_SECRETS, SECRETS } from './constants';
+import { AUTH, BCRYPT } from './constants';
 import * as bcrypt from 'bcryptjs';
 import {
   PersonalAccessTokenRepository,
@@ -70,8 +70,8 @@ export class AuthService {
 
     return this.generateToken(
       signInRequest.userId,
-      SECRETS.AUTH,
-      EXPIRY_TIMES_OF_SECRETS.AUTH,
+      AUTH.AUTH_TOKEN,
+      AUTH.AUTH_TOKEN_EXPIRY_TIME,
     );
   }
 
@@ -105,7 +105,7 @@ export class AuthService {
       this.personalAccessTokenRepository.invalidatePatForUserId(userId);
     }
 
-    const personalAccessToken = await this.generateToken(userId, SECRETS.PAT);
+    const personalAccessToken = await this.generateToken(userId, AUTH.PAT);
     const { token } =
       await this.personalAccessTokenRepository.savePersonalAccessToken(
         userId,
