@@ -1,7 +1,6 @@
-import { TwoFactorAuthRepository } from '../repositories';
 import { TwoFactorAuth } from '@prisma/client';
 
-export class MockTwoFactorAuthRepository extends TwoFactorAuthRepository {
+export class MockTwoFactorAuthRepository {
   save2faSecretKeyForUserWithId(
     userId: number,
     secretKey: string,
