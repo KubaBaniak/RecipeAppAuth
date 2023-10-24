@@ -78,10 +78,8 @@ describe('AuthService', () => {
         .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
         .mockImplementationOnce(() => Promise.resolve(request));
 
-      //when
       const accessToken = await authService.signIn(request);
 
-      //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });

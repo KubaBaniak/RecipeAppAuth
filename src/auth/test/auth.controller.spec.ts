@@ -51,30 +51,26 @@ describe('AuthController', () => {
 
   describe('SignIn', () => {
     it('should sign in / authenticate user', async () => {
-      //given
       const request = {
         userId: faker.number.int(),
         password: faker.internet.password({ length: 64 }),
       };
 
-      //when
       const { accessToken } = await authController.signIn(request);
 
-      //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });
   });
 
   describe('Two factor authentication', () => {
-    it('should create qrcode for 2fa', async () => {
+    it('should create qrcode for 2FA', async () => {
       const request = {
         userId: faker.number.int({ max: MAX_INT32 }),
       };
 
       const qrCodeObject = await authController.create2faQrCode(request);
 
-      //then
       expect(qrCodeObject).toBeDefined();
       expect(typeof qrCodeObject.qrCodeUrl).toBe('string');
       expect(typeof qrCodeObject.urlToEnable2FA).toBe('string');

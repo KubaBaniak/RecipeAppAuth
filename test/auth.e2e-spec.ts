@@ -127,11 +127,11 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-  describe('POST auth/create-2fa-qrcode', () => {
+  describe('POST auth/create-2FA-qrcode', () => {
     const userId = faker.number.int({ max: MAX_INT32 });
     it('should create QR code', () => {
       return request(app.getHttpServer())
-        .post('/auth/create-2fa-qrcode')
+        .post('/auth/create-2FA-qrcode')
         .set('Accept', 'application/json')
         .send({ userId })
         .expect((response: request.Response) => {
