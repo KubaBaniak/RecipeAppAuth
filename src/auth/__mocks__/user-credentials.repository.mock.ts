@@ -12,7 +12,9 @@ export class MockUserCredentialsRepository extends UserCredentialsRepository {
     return Promise.resolve({ userId, password });
   }
 
-  async getUserCredentialsByUserId(userId: number): Promise<UserCredentials> {
+  async getUserCredentialsByUserId(
+    userId: number,
+  ): Promise<UserCredentials | null> {
     return Promise.resolve({
       userId,
       password: faker.internet.password({ length: 64 }),

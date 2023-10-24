@@ -1,4 +1,12 @@
-import { Controller, Body, Post, HttpCode, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Body,
+  Post,
+  HttpCode,
+  UseGuards,
+  Get,
+  Query,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ChangePasswordRequest,
@@ -62,5 +70,14 @@ export class AuthController {
     @Body() changePasswordRequest: ChangePasswordRequest,
   ): Promise<void> {
     await this.authService.changePassword(changePasswordRequest);
+  }
+
+  @HttpCode(200)
+  @Get('activate-account')
+  async activateAccount(@Query('token') token: string): Promise<void> {
+    const tokenData = await this.authService.verifyAccountActivationToken(
+      token,
+    );
+    await this.authService.activateAccount(tokenData.id);
   }
 }

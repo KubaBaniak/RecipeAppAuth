@@ -20,6 +20,14 @@ export class MockAuthService extends AuthService {
     return Promise.resolve(faker.number.int({ max: MAX_INT32 }));
   }
 
+  async verifyAccountActivationToken(): Promise<{ id: number }> {
+    return Promise.resolve({ id: faker.number.int({ max: MAX_INT32 }) });
+  }
+
+  activateAccount(userId: number): Promise<number> {
+    return Promise.resolve(userId);
+  }
+
   createPersonalAccessToken(userId: number): Promise<string> {
     const jwtService = new JwtService();
     return Promise.resolve(

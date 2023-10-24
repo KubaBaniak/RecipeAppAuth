@@ -5,21 +5,23 @@ import { AuthService } from '../src/auth/auth.service';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
-  generateUserCredentials,
-  generateUserCredentialsWithHashedPassword,
-} from '../src/auth/test/user-credentials.factory';
-import {
+  PendingUserCredentialsRepository,
   PersonalAccessTokenRepository,
   UserCredentialsRepository,
 } from '../src/auth/repositories';
+import {
+  generateUserCredentials,
+  generateUserCredentialsWithHashedPassword,
+} from '../src/auth/test/user-credentials.factory';
 import { faker } from '@faker-js/faker';
-import { MAX_INT32, BCRYPT } from '../src/auth/constants';
+import { MAX_INT32, BCRYPT, AUTH } from '../src/auth/constants';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let prismaService: PrismaService;
+  let jwtServcie: JwtService;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -28,13 +30,16 @@ describe('AuthController (e2e)', () => {
         AuthService,
         JwtService,
         UserCredentialsRepository,
+        PendingUserCredentialsRepository,
         PersonalAccessTokenRepository,
         PrismaService,
       ],
     }).compile();
+    jest.clearAllMocks();
 
     app = moduleRef.createNestApplication();
     prismaService = moduleRef.get<PrismaService>(PrismaService);
+    jwtServcie = moduleRef.get<JwtService>(JwtService);
 
     app.useGlobalPipes(new ValidationPipe());
 
@@ -45,6 +50,7 @@ describe('AuthController (e2e)', () => {
       }),
     );
     await prismaService.userCredentials.deleteMany();
+    await prismaService.pendingUserCredentials.deleteMany();
     await app.init();
   });
 
@@ -61,9 +67,10 @@ describe('AuthController (e2e)', () => {
         .set('Accept', 'application/json')
         .send(userCredentials)
         .expect(async () => {
-          const credentials = await prismaService.userCredentials.findUnique({
-            where: { userId: userCredentials.userId },
-          });
+          const credentials =
+            await prismaService.pendingUserCredentials.findUnique({
+              where: { userId: userCredentials.userId },
+            });
           expect(credentials).toBeDefined();
           expect(credentials?.userId).toBeDefined();
           expect(typeof credentials?.userId).toBe('number');
@@ -73,7 +80,9 @@ describe('AuthController (e2e)', () => {
 
     it(`should not save user's credentials (already in db) and return 409 error`, async () => {
       const userCredentials = generateUserCredentials();
-      await prismaService.userCredentials.create({ data: userCredentials });
+      await prismaService.userCredentials.create({
+        data: userCredentials,
+      });
       return request(app.getHttpServer())
         .post('/auth/signup')
         .set('Accept', 'application/json')
@@ -177,6 +186,44 @@ describe('AuthController (e2e)', () => {
           }
         })
         .expect(HttpStatus.OK);
+    });
+  });
+
+  describe('GET /auth/activate-account', () => {
+    it(`should activate account`, async () => {
+      const userCredentials = generateUserCredentials();
+      const hashedPassword = await bcrypt.hash(
+        userCredentials.password,
+        BCRYPT.SALT,
+      );
+      const { userId } = await prismaService.pendingUserCredentials.create({
+        data: {
+          userId: userCredentials.userId,
+          password: hashedPassword,
+        },
+      });
+      const token = jwtServcie.sign(
+        { id: userId },
+        {
+          secret: AUTH.ACCOUNT_ACTIVATION,
+        },
+      );
+      return request(app.getHttpServer())
+        .get(`/auth/activate-account/?token=${token}`)
+        .set('Accept', 'application/json')
+        .expect(async () => {
+          const userCredentials = await prismaService.userCredentials.findFirst(
+            {
+              where: { userId },
+            },
+          );
+          const pendingUserCredentials =
+            await prismaService.pendingUserCredentials.findFirst({
+              where: { userId },
+            });
+          expect(userCredentials).toBeDefined();
+          expect(pendingUserCredentials).toBeNull();
+        });
     });
   });
 });

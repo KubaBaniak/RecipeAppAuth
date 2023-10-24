@@ -1,8 +1,14 @@
 import {
   ConflictException,
-  UnauthorizedException,
   Injectable,
+  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import {
+  PersonalAccessTokenRepository,
+  UserCredentialsRepository,
+  PendingUserCredentialsRepository,
+} from './repositories';
 import { AUTH, BCRYPT } from './constants';
 import * as bcrypt from 'bcryptjs';
 import {
@@ -11,17 +17,13 @@ import {
   SignUpRequest,
   UserCredentialsRequest,
 } from './dto';
-import {
-  PersonalAccessTokenRepository,
-  UserCredentialsRepository,
-} from './repositories';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import 'dotenv/config';
-
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userCredentialsRepository: UserCredentialsRepository,
+    private readonly pendingUserCredentialsRepository: PendingUserCredentialsRepository,
     private readonly personalAccessTokenRepository: PersonalAccessTokenRepository,
     private readonly jwtService: JwtService,
   ) {}
@@ -44,22 +46,26 @@ export class AuthService {
   async signUp(signUpRequest: SignUpRequest): Promise<number> {
     const { userId, password } = signUpRequest;
 
-    const isUserInDb =
-      await this.userCredentialsRepository.getUserCredentialsByUserId(userId);
+    const [pendingUserCredentials, userCredentials] = await Promise.all([
+      this.pendingUserCredentialsRepository.getPendingUserCredentialsById(
+        userId,
+      ),
+      this.userCredentialsRepository.getUserCredentialsByUserId(userId),
+    ]);
 
-    if (isUserInDb) {
+    if (pendingUserCredentials || userCredentials) {
       throw new ConflictException();
     }
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT.SALT);
 
-    const userCredentials =
-      await this.userCredentialsRepository.storeUserCredentials(
+    const savedCredentials =
+      await this.pendingUserCredentialsRepository.storePendingUserCredentials(
         userId,
         hashedPassword,
       );
 
-    return userCredentials.userId;
+    return savedCredentials.userId;
   }
   async signIn(signInRequest: SignInRequest): Promise<string> {
     const userCredentials =
@@ -130,5 +136,44 @@ export class AuthService {
       );
 
     return updatedCredentials.userId;
+  }
+
+  async verifyAccountActivationToken(
+    jwtToken: string,
+  ): Promise<{ id: number }> {
+    const invalidTokenMessage =
+      'Invalid token. Please provide a valid token to activate account';
+    try {
+      return this.jwtService.verify(jwtToken, {
+        secret: AUTH.ACCOUNT_ACTIVATION,
+      });
+    } catch {
+      throw new UnauthorizedException(invalidTokenMessage);
+    }
+  }
+
+  async activateAccount(userId: number): Promise<number> {
+    const userData =
+      await this.pendingUserCredentialsRepository.getPendingUserCredentialsById(
+        userId,
+      );
+
+    if (!userData) {
+      throw new NotFoundException(
+        'User account data for activation was not found. Please ensure you provided correct token or check if User is already activated',
+      );
+    }
+
+    const activatedUserCredentials =
+      await this.userCredentialsRepository.storeUserCredentials(
+        userData.userId,
+        userData.password,
+      );
+
+    await this.pendingUserCredentialsRepository.removePendingUserCredentialsById(
+      userId,
+    );
+
+    return activatedUserCredentials.userId;
   }
 }

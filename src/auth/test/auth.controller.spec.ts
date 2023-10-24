@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { AUTH, MAX_INT32 } from '../constants';
 import {
+  PendingUserCredentialsRepository,
   PersonalAccessTokenRepository,
   UserCredentialsRepository,
 } from '../repositories';
@@ -22,6 +23,7 @@ describe('AuthController', () => {
       providers: [
         PrismaService,
         UserCredentialsRepository,
+        PendingUserCredentialsRepository,
         PersonalAccessTokenRepository,
         JwtService,
         {
@@ -30,6 +32,7 @@ describe('AuthController', () => {
         },
       ],
     }).compile();
+    jest.clearAllMocks();
 
     authController = module.get<AuthController>(AuthController);
     authService = module.get<AuthService>(AuthService);
@@ -37,7 +40,7 @@ describe('AuthController', () => {
   });
 
   describe('SignUp', () => {
-    it('should sign up user', async () => {
+    it('should sign up user (not activated)', async () => {
       //given
       const request = {
         userId: faker.number.int({ max: MAX_INT32 }),
@@ -101,6 +104,17 @@ describe('AuthController', () => {
       await authController.changePassword(request);
 
       expect(authService.changePassword).toHaveBeenCalled();
+    });
+  });
+
+  describe('Activate account', () => {
+    it('should acctivate account', async () => {
+      const token = faker.string.alphanumeric({ length: 64 });
+      jest.spyOn(authService, 'activateAccount');
+
+      await authController.activateAccount(token);
+
+      expect(authService.activateAccount).toHaveBeenCalled();
     });
   });
 });
