@@ -154,5 +154,19 @@ describe('AuthController', () => {
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });
+
+    it('should regenerate recovery keys', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+
+      const { recoveryKeys } = await authController.regenerateRecoveryKeys(
+        request,
+      );
+
+      expect(recoveryKeys).toBeDefined();
+      expect(recoveryKeys).toBeInstanceOf(Array<string>);
+      expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
+    });
   });
 });

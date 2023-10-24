@@ -15,7 +15,12 @@ import {
   generateUserCredentialsWithHashedPassword,
 } from '../src/auth/test/user-credentials.factory';
 import { faker } from '@faker-js/faker';
-import { MAX_INT32, BCRYPT, AUTH } from '../src/auth/constants';
+import {
+  MAX_INT32,
+  BCRYPT,
+  AUTH,
+  NUMBER_OF_2FA_RECOVERY_KEYS,
+} from '../src/auth/constants';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { authenticator } from 'otplib';
@@ -346,6 +351,33 @@ describe('AuthController (e2e)', () => {
           expect(typeof response.body.accessToken).toBe('string');
         })
         .expect(HttpStatus.OK);
+    });
+  });
+
+  describe('POST /auth/regenerate-2fa-recovery-keys', () => {
+    it('should regenerate recovery keys for 2FA', async () => {
+      const secret2fa = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const twoFactorAuth = await prismaService.twoFactorAuth.create({
+        data: create2fa({ isEnabled: true, secretKey: secret2fa, userId }),
+      });
+      await prismaService.twoFactorAuthRecoveryKey.createMany({
+        data: createRecoveryKeys({
+          twoFactorAuthUserId: twoFactorAuth.userId,
+        }),
+      });
+      return request(app.getHttpServer())
+        .post('/auth/regenerate-2fa-recovery-keys')
+        .set('Accept', 'application/json')
+        .send({
+          userId: twoFactorAuth.userId,
+        })
+        .expect((response: request.Response) => {
+          const { recoveryKeys }: { recoveryKeys: string[] } = response.body;
+          expect(recoveryKeys).toBeInstanceOf(Array<string>);
+          expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
+        })
+        .expect(HttpStatus.CREATED);
     });
   });
 });

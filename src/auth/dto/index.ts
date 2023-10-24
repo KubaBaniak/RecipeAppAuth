@@ -6,6 +6,7 @@ export * from './create-pat-response';
 export * from './disable-2fa-request';
 export * from './enable-2fa-request';
 export * from './recovery-keys-response';
+export * from './regenerate-recovery-keys-request';
 export * from './sign-in-request';
 export * from './sign-in-response';
 export * from './sign-up-request';
