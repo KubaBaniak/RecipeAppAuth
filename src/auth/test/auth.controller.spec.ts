@@ -32,6 +32,7 @@ describe('AuthController', () => {
         },
       ],
     }).compile();
+    jest.clearAllMocks();
 
     authController = module.get<AuthController>(AuthController);
     authService = module.get<AuthService>(AuthService);

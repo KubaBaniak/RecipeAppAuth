@@ -43,6 +43,7 @@ describe('AuthService', () => {
         },
       ],
     }).compile();
+    jest.clearAllMocks();
 
     authService = module.get<AuthService>(AuthService);
     jwtServcie = module.get<JwtService>(JwtService);

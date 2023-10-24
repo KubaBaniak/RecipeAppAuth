@@ -35,6 +35,7 @@ describe('AuthController (e2e)', () => {
         PrismaService,
       ],
     }).compile();
+    jest.clearAllMocks();
 
     app = moduleRef.createNestApplication();
     prismaService = moduleRef.get<PrismaService>(PrismaService);
