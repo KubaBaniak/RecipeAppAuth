@@ -4,13 +4,7 @@ import { MockAuthService } from '../__mocks__/auth.service.mock';
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { AUTH, MAX_INT32 } from '../constants';
-import {
-  PendingUserCredentialsRepository,
-  PersonalAccessTokenRepository,
-  UserCredentialsRepository,
-} from '../repositories';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -21,10 +15,6 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
-        PrismaService,
-        UserCredentialsRepository,
-        PendingUserCredentialsRepository,
-        PersonalAccessTokenRepository,
         JwtService,
         {
           provide: AuthService,
@@ -57,16 +47,13 @@ describe('AuthController', () => {
 
   describe('SignIn', () => {
     it('should sign in / authenticate user', async () => {
-      //given
       const request = {
         userId: faker.number.int(),
         password: faker.internet.password({ length: 64 }),
       };
 
-      //when
       const { accessToken } = await authController.signIn(request);
 
-      //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });
@@ -115,6 +102,20 @@ describe('AuthController', () => {
       await authController.activateAccount(token);
 
       expect(authService.activateAccount).toHaveBeenCalled();
+    });
+  });
+
+  describe('Two factor authentication', () => {
+    it('should create qrcode for 2FA', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+
+      const qrCodeObject = await authController.create2faQrCode(request);
+
+      expect(qrCodeObject).toBeDefined();
+      expect(typeof qrCodeObject.qrCodeUrl).toBe('string');
+      expect(typeof qrCodeObject.urlToEnable2FA).toBe('string');
     });
   });
 });

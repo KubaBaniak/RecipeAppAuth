@@ -3,6 +3,7 @@ import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
 import {
   UserCredentialsRepository,
+  TwoFactorAuthRepository,
   PersonalAccessTokenRepository,
   PendingUserCredentialsRepository,
 } from '../repositories';
@@ -11,6 +12,7 @@ import { AUTH, BCRYPT, MAX_INT32 } from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   MockUserCredentialsRepository,
+  MockTwoFactorAuthRepository,
   MockPendingUserCredentialsRepository,
   MockPatRepository,
 } from '../__mocks__';
@@ -40,6 +42,10 @@ describe('AuthService', () => {
         {
           provide: PendingUserCredentialsRepository,
           useClass: MockPendingUserCredentialsRepository,
+        },
+        {
+          provide: TwoFactorAuthRepository,
+          useClass: MockTwoFactorAuthRepository,
         },
       ],
     }).compile();
@@ -99,10 +105,8 @@ describe('AuthService', () => {
         .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
         .mockImplementationOnce(() => Promise.resolve(request));
 
-      //when
       const accessToken = await authService.signIn(request);
 
-      //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });
@@ -176,6 +180,17 @@ describe('AuthService', () => {
       );
 
       expect(tokenPayload.id).toEqual(userId);
+    });
+  });
+
+  describe('Two factor authentication', () => {
+    it('should create QR code with secret key', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const qrCode = await authService.createQrCodeFor2fa(userId);
+
+      expect(qrCode).toBeDefined();
+      expect(typeof qrCode).toBe('string');
     });
   });
 });

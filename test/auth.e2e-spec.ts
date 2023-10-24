@@ -5,9 +5,10 @@ import { AuthService } from '../src/auth/auth.service';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
+  UserCredentialsRepository,
+  TwoFactorAuthRepository,
   PendingUserCredentialsRepository,
   PersonalAccessTokenRepository,
-  UserCredentialsRepository,
 } from '../src/auth/repositories';
 import {
   generateUserCredentials,
@@ -30,6 +31,7 @@ describe('AuthController (e2e)', () => {
         AuthService,
         JwtService,
         UserCredentialsRepository,
+        TwoFactorAuthRepository,
         PendingUserCredentialsRepository,
         PersonalAccessTokenRepository,
         PrismaService,
@@ -224,6 +226,21 @@ describe('AuthController (e2e)', () => {
           expect(userCredentials).toBeDefined();
           expect(pendingUserCredentials).toBeNull();
         });
+    });
+  });
+  describe('POST auth/create-2FA-qrcode', () => {
+    const userId = faker.number.int({ max: MAX_INT32 });
+    it('should create QR code', () => {
+      return request(app.getHttpServer())
+        .post('/auth/create-2FA-qrcode')
+        .set('Accept', 'application/json')
+        .send({ userId })
+        .expect((response: request.Response) => {
+          expect(response.body).toBeDefined();
+          expect(typeof response.body.urlToEnable2FA).toBe('string');
+          expect(typeof response.body.qrCodeUrl).toBe('string');
+        })
+        .expect(HttpStatus.CREATED);
     });
   });
 });

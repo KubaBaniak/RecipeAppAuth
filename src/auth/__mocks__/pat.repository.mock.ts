@@ -1,8 +1,7 @@
-import { PersonalAccessTokenRepository } from '../repositories';
 import { PersonalAccessTokens } from '@prisma/client';
 import { createPat } from './pat-token.factory';
 
-export class MockPatRepository extends PersonalAccessTokenRepository {
+export class MockPatRepository {
   savePersonalAccessToken(
     userId: number,
     token: string,

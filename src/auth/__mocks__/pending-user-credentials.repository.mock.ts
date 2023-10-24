@@ -1,8 +1,7 @@
-import { PendingUserCredentialsRepository } from '../repositories';
 import { PendingUserCredentials } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 
-export class MockPendingUserCredentialsRepository extends PendingUserCredentialsRepository {
+export class MockPendingUserCredentialsRepository {
   storePendingUserCredentials(
     userId: number,
     password: string,

@@ -1,10 +1,9 @@
 import { ChangePasswordRequest, SignUpRequest } from '../dto';
 import { JwtService } from '@nestjs/jwt';
-import { AuthService } from '../auth.service';
 import { AUTH, MAX_INT32 } from '../constants';
 import { faker } from '@faker-js/faker';
 
-export class MockAuthService extends AuthService {
+export class MockAuthService {
   signUp(signUpRequest: SignUpRequest): Promise<number> {
     return Promise.resolve(signUpRequest.userId);
   }
@@ -39,5 +38,9 @@ export class MockAuthService extends AuthService {
     changePasswordRequest: ChangePasswordRequest,
   ): Promise<number> {
     return Promise.resolve(changePasswordRequest.userId);
+  }
+
+  createQrCodeFor2fa(): Promise<string> {
+    return Promise.resolve(faker.string.alphanumeric());
   }
 }

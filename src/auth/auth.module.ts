@@ -3,9 +3,10 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  UserCredentialsRepository,
+  TwoFactorAuthRepository,
   PendingUserCredentialsRepository,
   PersonalAccessTokenRepository,
-  UserCredentialsRepository,
 } from './repositories';
 import { LocalAuthGuard } from './guards';
 import { LocalStrategy } from './strategies';
@@ -16,6 +17,7 @@ import { JwtService } from '@nestjs/jwt';
     AuthService,
     JwtService,
     UserCredentialsRepository,
+    TwoFactorAuthRepository,
     PendingUserCredentialsRepository,
     PersonalAccessTokenRepository,
     PrismaService,

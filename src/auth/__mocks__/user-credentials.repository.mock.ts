@@ -1,10 +1,9 @@
 import { faker } from '@faker-js/faker';
-import { UserCredentialsRepository } from '../repositories';
 import { UserCredentials } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { BCRYPT } from '../constants';
 
-export class MockUserCredentialsRepository extends UserCredentialsRepository {
+export class MockUserCredentialsRepository {
   storeUserCredentials(
     userId: number,
     password: string,
