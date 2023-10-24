@@ -184,7 +184,7 @@ describe('AuthService', () => {
   });
 
   describe('Two factor authentication', () => {
-    it('should create QR code with secret Key', async () => {
+    it('should create QR code with secret key', async () => {
       const userId = faker.number.int({ max: MAX_INT32 });
 
       const qrCode = await authService.createQrCodeFor2fa(userId);
