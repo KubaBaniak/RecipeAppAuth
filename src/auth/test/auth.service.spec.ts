@@ -3,14 +3,16 @@ import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
 import {
   UserCredentialsRepository,
+  PersonalAccessTokenRepository,
   PendingUserCredentialsRepository,
 } from '../repositories';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT, MAX_INT32, SECRETS } from '../constants';
+import { AUTH, BCRYPT, MAX_INT32 } from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   MockUserCredentialsRepository,
   MockPendingUserCredentialsRepository,
+  MockPatRepository,
 } from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
 
@@ -24,8 +26,13 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        PrismaService,
         JwtService,
+        PrismaService,
+        UserCredentialsRepository,
+        {
+          provide: PersonalAccessTokenRepository,
+          useClass: MockPatRepository,
+        },
         {
           provide: UserCredentialsRepository,
           useClass: MockUserCredentialsRepository,
@@ -100,6 +107,33 @@ describe('AuthService', () => {
     });
   });
 
+  describe('Personal access token', () => {
+    it('should create personal access token', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const personalAccessToken = await authService.createPersonalAccessToken(
+        userId,
+      );
+
+      expect(personalAccessToken).toBeDefined();
+      expect(typeof personalAccessToken).toBe('string');
+    });
+  });
+
+  describe('Change password', () => {
+    it('should change password', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        newPassword: faker.internet.password(),
+      };
+
+      const userId = await authService.changePassword(request);
+
+      expect(typeof userId).toEqual('number');
+      expect(userId).toEqual(request.userId);
+    });
+  });
+
   describe('Activate account', () => {
     it('should activate account', async () => {
       const userId = faker.number.int({ max: MAX_INT32 });
@@ -132,7 +166,7 @@ describe('AuthService', () => {
       const accountActivationToken = jwtServcie.sign(
         { id: userId },
         {
-          secret: SECRETS.ACCOUNT_ACTIVATION,
+          secret: AUTH.ACCOUNT_ACTIVATION,
         },
       );
 

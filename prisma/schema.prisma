@@ -19,3 +19,10 @@ model PendingUserCredentials {
   userId   Int    @unique
   password String
 }
+
+model PersonalAccessTokens {
+  userId        Int       @unique()
+  createdAt     DateTime  @default(now())
+  token         String
+  invalidatedAt DateTime?
+}
