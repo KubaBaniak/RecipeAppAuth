@@ -29,4 +29,17 @@ export class UserCredentialsRepository {
 
     return this.prismaService.userCredentials.findUnique(queryObject);
   }
+
+  updateUserPasswordByUserId(
+    userId: number,
+    newPassword: string,
+  ): Promise<UserCredentials> {
+    const passwordUpdateData = {
+      where: { userId },
+      data: {
+        password: newPassword,
+      },
+    };
+    return this.prismaService.userCredentials.update(passwordUpdateData);
+  }
 }

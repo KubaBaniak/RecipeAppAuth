@@ -14,6 +14,7 @@ type RecoveryKeysOverrides = {
   isUsed?: boolean;
   usedAt?: Date;
   twoFactorAuthUserId?: number;
+  secretKey?: string;
 };
 
 export function create2fa(
@@ -40,10 +41,16 @@ export function createRecoveryKeys(
   });
 }
 
-export function createRecoveryKeysWithKeyAndIsUsed(secretKey?: string) {
+export function createRecoveryKeysWithKeyAndIsUsed(
+  overrides: RecoveryKeysOverrides = {},
+) {
   return Array.from({ length: NUMBER_OF_2FA_RECOVERY_KEYS }, () => {
     return {
-      key: authenticator.generate(secretKey || authenticator.generateSecret()),
+      twoFactorAuthUserId:
+        overrides.twoFactorAuthUserId ?? faker.number.int({ max: MAX_INT32 }),
+      key: authenticator.generate(
+        overrides.secretKey ?? authenticator.generateSecret(),
+      ),
       isUsed: false,
     };
   });

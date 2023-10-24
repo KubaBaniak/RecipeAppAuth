@@ -15,6 +15,18 @@ model UserCredentials {
   password String
 }
 
+model PendingUserCredentials {
+  userId   Int    @unique
+  password String
+}
+
+model PersonalAccessTokens {
+  userId        Int       @unique()
+  createdAt     DateTime  @default(now())
+  token         String
+  invalidatedAt DateTime?
+}
+
 model TwoFactorAuth {
   userId       Int                        @unique
   recoveryKeys TwoFactorAuthRecoveryKey[]

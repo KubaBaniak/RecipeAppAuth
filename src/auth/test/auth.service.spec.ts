@@ -2,15 +2,24 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../auth.service';
 import { faker } from '@faker-js/faker';
 import {
-  TwoFactorAuthRepository,
   UserCredentialsRepository,
+  TwoFactorAuthRepository,
+  PersonalAccessTokenRepository,
+  PendingUserCredentialsRepository,
 } from '../repositories';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT, MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
+import {
+  AUTH,
+  BCRYPT,
+  MAX_INT32,
+  NUMBER_OF_2FA_RECOVERY_KEYS,
+} from '../constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  MockTwoFactorAuthRepository,
   MockUserCredentialsRepository,
+  MockTwoFactorAuthRepository,
+  MockPendingUserCredentialsRepository,
+  MockPatRepository,
 } from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
 import { authenticator } from 'otplib';
@@ -23,16 +32,27 @@ describe('AuthService', () => {
   let authService: AuthService;
   let userCredentialsRepository: UserCredentialsRepository;
   let twoFactorAuthRepository: TwoFactorAuthRepository;
+  let pendingUserCredentialsRepository: PendingUserCredentialsRepository;
+  let jwtServcie: JwtService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        PrismaService,
         JwtService,
+        PrismaService,
+        UserCredentialsRepository,
+        {
+          provide: PersonalAccessTokenRepository,
+          useClass: MockPatRepository,
+        },
         {
           provide: UserCredentialsRepository,
           useClass: MockUserCredentialsRepository,
+        },
+        {
+          provide: PendingUserCredentialsRepository,
+          useClass: MockPendingUserCredentialsRepository,
         },
         {
           provide: TwoFactorAuthRepository,
@@ -40,14 +60,20 @@ describe('AuthService', () => {
         },
       ],
     }).compile();
+    jest.clearAllMocks();
 
     authService = module.get<AuthService>(AuthService);
+    jwtServcie = module.get<JwtService>(JwtService);
     userCredentialsRepository = module.get<UserCredentialsRepository>(
       UserCredentialsRepository,
     );
     twoFactorAuthRepository = module.get<TwoFactorAuthRepository>(
       TwoFactorAuthRepository,
     );
+    pendingUserCredentialsRepository =
+      module.get<PendingUserCredentialsRepository>(
+        PendingUserCredentialsRepository,
+      );
   });
 
   afterAll(async () => {
@@ -63,6 +89,12 @@ describe('AuthService', () => {
       };
       jest
         .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
+        .mockImplementationOnce(() => Promise.resolve(null));
+      jest
+        .spyOn(
+          pendingUserCredentialsRepository,
+          'getPendingUserCredentialsById',
+        )
         .mockImplementationOnce(() => Promise.resolve(null));
 
       //when
@@ -87,17 +119,86 @@ describe('AuthService', () => {
         .spyOn(userCredentialsRepository, 'getUserCredentialsByUserId')
         .mockImplementationOnce(() => Promise.resolve(request));
 
-      //when
       const accessToken = await authService.signIn(request);
 
-      //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });
   });
 
+  describe('Personal access token', () => {
+    it('should create personal access token', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const personalAccessToken = await authService.createPersonalAccessToken(
+        userId,
+      );
+
+      expect(personalAccessToken).toBeDefined();
+      expect(typeof personalAccessToken).toBe('string');
+    });
+  });
+
+  describe('Change password', () => {
+    it('should change password', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        newPassword: faker.internet.password(),
+      };
+
+      const userId = await authService.changePassword(request);
+
+      expect(typeof userId).toEqual('number');
+      expect(userId).toEqual(request.userId);
+    });
+  });
+
+  describe('Activate account', () => {
+    it('should activate account', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+      jest.spyOn(userCredentialsRepository, 'storeUserCredentials');
+      jest.spyOn(
+        pendingUserCredentialsRepository,
+        'getPendingUserCredentialsById',
+      );
+      jest.spyOn(
+        pendingUserCredentialsRepository,
+        'removePendingUserCredentialsById',
+      );
+
+      const activatedUserCredentials = await authService.activateAccount(
+        userId,
+      );
+
+      expect(typeof activatedUserCredentials).toBe('number');
+      expect(userCredentialsRepository.storeUserCredentials).toHaveBeenCalled();
+      expect(
+        pendingUserCredentialsRepository.getPendingUserCredentialsById,
+      ).toHaveBeenCalled();
+      expect(
+        pendingUserCredentialsRepository.removePendingUserCredentialsById,
+      ).toHaveBeenCalled();
+    });
+
+    it('should verify account activation token', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const accountActivationToken = jwtServcie.sign(
+        { id: userId },
+        {
+          secret: AUTH.ACCOUNT_ACTIVATION,
+        },
+      );
+
+      const tokenPayload = await authService.verifyAccountActivationToken(
+        accountActivationToken,
+      );
+
+      expect(tokenPayload.id).toEqual(userId);
+    });
+  });
+
   describe('Two factor authentication', () => {
-    it('should create QR code with secret Key', async () => {
+    it('should create QR code with secret key', async () => {
       const userId = faker.number.int({ max: MAX_INT32 });
 
       const qrCode = await authService.createQrCodeFor2fa(userId);
@@ -158,11 +259,13 @@ describe('AuthService', () => {
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });
+
     it('should verify 2fa recovery token', async () => {
       const twoFactorAuthSecret = authenticator.generateSecret();
       const userId = faker.number.int({ max: MAX_INT32 });
-      const recoveryKeys =
-        createRecoveryKeysWithKeyAndIsUsed(twoFactorAuthSecret);
+      const recoveryKeys = createRecoveryKeysWithKeyAndIsUsed({
+        secretKey: twoFactorAuthSecret,
+      });
       jest
         .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
         .mockResolvedValueOnce(
@@ -175,7 +278,9 @@ describe('AuthService', () => {
       jest
         .spyOn(twoFactorAuthRepository, 'getRecoveryKeysForUserWithId')
         .mockResolvedValueOnce(
-          createRecoveryKeysWithKeyAndIsUsed(twoFactorAuthSecret),
+          createRecoveryKeysWithKeyAndIsUsed({
+            secretKey: twoFactorAuthSecret,
+          }),
         );
       jest.spyOn(twoFactorAuthRepository, 'expire2faRecoveryKey');
 
