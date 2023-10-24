@@ -1,8 +1,7 @@
-import { TwoFactorAuthRepository } from '../repositories';
 import { TwoFactorAuth } from '@prisma/client';
 import { create2fa } from '../test/twoFactorAuth.factory';
 
-export class MockTwoFactorAuthRepository extends TwoFactorAuthRepository {
+export class MockTwoFactorAuthRepository {
   save2faSecretKeyForUserWithId(
     userId: number,
     secretKey: string,
@@ -20,5 +19,9 @@ export class MockTwoFactorAuthRepository extends TwoFactorAuthRepository {
 
   disable2faForUserWithId(userId: number): Promise<TwoFactorAuth> {
     return Promise.resolve(create2fa({ userId }));
+  }
+
+  async saveRecoveryKeysForUserWithId(): Promise<void> {
+    return Promise.resolve();
   }
 }

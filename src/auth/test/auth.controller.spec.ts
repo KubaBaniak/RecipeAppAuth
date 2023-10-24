@@ -3,26 +3,18 @@ import { AuthService } from '../auth.service';
 import { MockAuthService } from '../__mocks__/auth.service.mock';
 import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
-import { MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
-import {
-  TwoFactorAuthRepository,
-  UserCredentialsRepository,
-} from '../repositories';
-import { PrismaService } from '../../prisma/prisma.service';
+import { AUTH, MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
 import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController', () => {
   let authController: AuthController;
-  let authServcie: AuthService;
+  let authService: AuthService;
+  let jwtService: JwtService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
-        JwtService,
-        UserCredentialsRepository,
-        TwoFactorAuthRepository,
-        PrismaService,
         JwtService,
         {
           provide: AuthService,
@@ -30,13 +22,15 @@ describe('AuthController', () => {
         },
       ],
     }).compile();
+    jest.clearAllMocks();
 
     authController = module.get<AuthController>(AuthController);
-    authServcie = module.get<AuthService>(AuthService);
+    authService = module.get<AuthService>(AuthService);
+    jwtService = module.get<JwtService>(JwtService);
   });
 
   describe('SignUp', () => {
-    it('should sign up user', async () => {
+    it('should sign up user (not activated)', async () => {
       //given
       const request = {
         userId: faker.number.int({ max: MAX_INT32 }),
@@ -53,30 +47,72 @@ describe('AuthController', () => {
 
   describe('SignIn', () => {
     it('should sign in / authenticate user', async () => {
-      //given
       const request = {
         userId: faker.number.int(),
         password: faker.internet.password({ length: 64 }),
       };
 
-      //when
       const { accessToken } = await authController.signIn(request);
 
-      //then
       expect(accessToken).toBeDefined();
       expect(typeof accessToken).toBe('string');
     });
   });
 
+  describe('Personal access token', () => {
+    it('should create personal access token', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+
+      const createPatResponse = await authController.createPat(request);
+
+      expect(createPatResponse).toBeDefined();
+      expect(typeof createPatResponse.personalAccessToken).toBe('string');
+      expect(
+        jwtService.verify(createPatResponse.personalAccessToken, {
+          secret: AUTH.PAT,
+        }),
+      ).toEqual({
+        id: request.userId,
+        iat: expect.any(Number),
+      });
+    });
+  });
+
+  describe('Change password', () => {
+    it('should change password', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        newPassword: faker.internet.password(),
+      };
+      jest.spyOn(authService, 'changePassword');
+
+      await authController.changePassword(request);
+
+      expect(authService.changePassword).toHaveBeenCalled();
+    });
+  });
+
+  describe('Activate account', () => {
+    it('should acctivate account', async () => {
+      const token = faker.string.alphanumeric({ length: 64 });
+      jest.spyOn(authService, 'activateAccount');
+
+      await authController.activateAccount(token);
+
+      expect(authService.activateAccount).toHaveBeenCalled();
+    });
+  });
+
   describe('Two factor authentication', () => {
-    it('should create qrcode for 2fa', async () => {
+    it('should create qrcode for 2FA', async () => {
       const request = {
         userId: faker.number.int({ max: MAX_INT32 }),
       };
 
       const qrCodeObject = await authController.create2faQrCode(request);
 
-      //then
       expect(qrCodeObject).toBeDefined();
       expect(typeof qrCodeObject.qrCodeUrl).toBe('string');
       expect(typeof qrCodeObject.urlToEnable2FA).toBe('string');
@@ -99,11 +135,11 @@ describe('AuthController', () => {
       const request = {
         userId: faker.number.int({ max: MAX_INT32 }),
       };
-      jest.spyOn(authServcie, 'disable2fa');
+      jest.spyOn(authService, 'disable2fa');
 
       await authController.disable2fa(request);
 
-      expect(authServcie.disable2fa).toHaveBeenCalled();
+      expect(authService.disable2fa).toHaveBeenCalled();
     });
   });
 });

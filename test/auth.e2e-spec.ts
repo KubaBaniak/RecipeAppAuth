@@ -7,11 +7,16 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import {
   UserCredentialsRepository,
   TwoFactorAuthRepository,
+  PendingUserCredentialsRepository,
+  PersonalAccessTokenRepository,
 } from '../src/auth/repositories';
-import { generateUserCredentials } from '../src/auth/test/user-credentials.factory';
+import {
+  generateUserCredentials,
+  generateUserCredentialsWithHashedPassword,
+} from '../src/auth/test/user-credentials.factory';
 import { faker } from '@faker-js/faker';
+import { MAX_INT32, BCRYPT, AUTH } from '../src/auth/constants';
 import * as bcrypt from 'bcryptjs';
-import { BCRYPT, MAX_INT32 } from '../src/auth/constants';
 import { JwtService } from '@nestjs/jwt';
 import { authenticator } from 'otplib';
 import { create2fa } from '../src/auth/test/twoFactorAuth.factory';
@@ -19,21 +24,26 @@ import { create2fa } from '../src/auth/test/twoFactorAuth.factory';
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let prismaService: PrismaService;
+  let jwtServcie: JwtService;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AuthModule],
       providers: [
-        JwtService,
         AuthService,
+        JwtService,
         UserCredentialsRepository,
         TwoFactorAuthRepository,
+        PendingUserCredentialsRepository,
+        PersonalAccessTokenRepository,
         PrismaService,
       ],
     }).compile();
+    jest.clearAllMocks();
 
     app = moduleRef.createNestApplication();
     prismaService = moduleRef.get<PrismaService>(PrismaService);
+    jwtServcie = moduleRef.get<JwtService>(JwtService);
 
     app.useGlobalPipes(new ValidationPipe());
 
@@ -44,12 +54,12 @@ describe('AuthController (e2e)', () => {
       }),
     );
     await prismaService.userCredentials.deleteMany();
+    await prismaService.pendingUserCredentials.deleteMany();
     await app.init();
   });
 
   afterAll(async () => {
     await prismaService.userCredentials.deleteMany();
-    await prismaService.$disconnect();
     await app.close();
   });
 
@@ -61,9 +71,10 @@ describe('AuthController (e2e)', () => {
         .set('Accept', 'application/json')
         .send(userCredentials)
         .expect(async () => {
-          const credentials = await prismaService.userCredentials.findUnique({
-            where: { userId: userCredentials.userId },
-          });
+          const credentials =
+            await prismaService.pendingUserCredentials.findUnique({
+              where: { userId: userCredentials.userId },
+            });
           expect(credentials).toBeDefined();
           expect(credentials?.userId).toBeDefined();
           expect(typeof credentials?.userId).toBe('number');
@@ -73,7 +84,9 @@ describe('AuthController (e2e)', () => {
 
     it(`should not save user's credentials (already in db) and return 409 error`, async () => {
       const userCredentials = generateUserCredentials();
-      await prismaService.userCredentials.create({ data: userCredentials });
+      await prismaService.userCredentials.create({
+        data: userCredentials,
+      });
       return request(app.getHttpServer())
         .post('/auth/signup')
         .set('Accept', 'application/json')
@@ -129,11 +142,99 @@ describe('AuthController (e2e)', () => {
     });
   });
 
+  describe('POST /auth/create-pat', () => {
+    it(`should create personal access token for user`, async () => {
+      const patCreateRequest = { userId: faker.number.int({ max: MAX_INT32 }) };
+      return request(app.getHttpServer())
+        .post('/auth/create-pat')
+        .set('Accept', 'application/json')
+        .send(patCreateRequest)
+        .expect(async () => {
+          const { userId } = patCreateRequest;
+          const pat = await prismaService.personalAccessTokens.findUnique({
+            where: { userId },
+          });
+          expect(pat).toBeDefined();
+          expect(pat).toEqual(
+            expect.objectContaining({
+              userId,
+              createdAt: expect.any(Date),
+              token: expect.any(String),
+              invalidatedAt: null,
+            }),
+          );
+        })
+        .expect(HttpStatus.CREATED);
+    });
+  });
+
+  describe('POST /auth/change-password', () => {
+    it(`should change password`, async () => {
+      const userCredentials = await generateUserCredentialsWithHashedPassword();
+      await prismaService.userCredentials.create({ data: userCredentials });
+      const newPassword = faker.internet.password({ length: 64 });
+      return request(app.getHttpServer())
+        .post('/auth/change-password')
+        .set('Accept', 'application/json')
+        .send({ userId: userCredentials.userId, newPassword })
+        .expect(async () => {
+          const result = await prismaService.userCredentials.findUnique({
+            where: { userId: userCredentials.userId },
+          });
+          if (result?.password) {
+            const passwordsMatch = await bcrypt.compare(
+              newPassword,
+              result.password,
+            );
+            expect(passwordsMatch).toBe(true);
+          }
+        })
+        .expect(HttpStatus.OK);
+    });
+  });
+
+  describe('GET /auth/activate-account', () => {
+    it(`should activate account`, async () => {
+      const userCredentials = generateUserCredentials();
+      const hashedPassword = await bcrypt.hash(
+        userCredentials.password,
+        BCRYPT.SALT,
+      );
+      const { userId } = await prismaService.pendingUserCredentials.create({
+        data: {
+          userId: userCredentials.userId,
+          password: hashedPassword,
+        },
+      });
+      const token = jwtServcie.sign(
+        { id: userId },
+        {
+          secret: AUTH.ACCOUNT_ACTIVATION,
+        },
+      );
+      return request(app.getHttpServer())
+        .get(`/auth/activate-account/?token=${token}`)
+        .set('Accept', 'application/json')
+        .expect(async () => {
+          const userCredentials = await prismaService.userCredentials.findFirst(
+            {
+              where: { userId },
+            },
+          );
+          const pendingUserCredentials =
+            await prismaService.pendingUserCredentials.findFirst({
+              where: { userId },
+            });
+          expect(userCredentials).toBeDefined();
+          expect(pendingUserCredentials).toBeNull();
+        });
+    });
+  });
   describe('POST auth/create-2fa-qrcode', () => {
     it('should create QR code', () => {
       const userId = faker.number.int({ max: MAX_INT32 });
       return request(app.getHttpServer())
-        .post('/auth/create-2fa-qrcode')
+        .post('/auth/create-2FA-qrcode')
         .set('Accept', 'application/json')
         .send({ userId })
         .expect((response: request.Response) => {
@@ -144,6 +245,7 @@ describe('AuthController (e2e)', () => {
         .expect(HttpStatus.CREATED);
     });
   });
+
   describe('POST auth/enable-2fa', () => {
     it('should enable 2fa', async () => {
       const twoFactorAuth = await prismaService.twoFactorAuth.create({
