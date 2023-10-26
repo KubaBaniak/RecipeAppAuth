@@ -43,4 +43,22 @@ export class MockAuthService {
   createQrCodeFor2fa(): Promise<string> {
     return Promise.resolve(faker.string.alphanumeric());
   }
+
+  enable2fa(): Promise<string[]> {
+    return Promise.all(
+      Array.from({ length: 8 }, () => {
+        return faker.string.alphanumeric({ length: 8 });
+      }),
+    );
+  }
+
+  disable2fa(
+    userId: number,
+  ): Promise<{ userId: number; secretKey: string; isEnabled: boolean }> {
+    return Promise.resolve({
+      userId,
+      secretKey: faker.string.alphanumeric({ length: 8 }),
+      isEnabled: true,
+    });
+  }
 }

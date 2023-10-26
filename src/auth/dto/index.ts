@@ -7,4 +7,7 @@ export * from './sign-up-response';
 export * from './user-credentials-request';
 export * from './create-2fa-qrcode-response';
 export * from './create-2fa-qrcode-request';
+export * from './enable-2fa-request';
+export * from './disable-2fa-request';
+export * from './recovery-keys-response';
 export * from './change-password-request';

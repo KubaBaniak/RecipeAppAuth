@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -10,7 +12,12 @@ import {
   PendingUserCredentialsRepository,
   TwoFactorAuthRepository,
 } from './repositories';
-import { AUTH, BCRYPT, SERVICE_NAME } from './constants';
+import {
+  AUTH,
+  BCRYPT,
+  SERVICE_NAME,
+  NUMBER_OF_2FA_RECOVERY_KEYS,
+} from './constants';
 import * as bcrypt from 'bcryptjs';
 import {
   ChangePasswordRequest,
@@ -22,6 +29,7 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import 'dotenv/config';
 import qrcode from 'qrcode';
 import { authenticator } from 'otplib';
+import { TwoFactorAuth } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -194,5 +202,54 @@ export class AuthService {
     );
 
     return qrcode.toDataURL(otpauth);
+  }
+
+  async generate2faRecoveryKeys(userId: number): Promise<string[]> {
+    const recoveryKeys = Array.from(
+      { length: NUMBER_OF_2FA_RECOVERY_KEYS },
+      () => {
+        return { key: authenticator.generateSecret() };
+      },
+    );
+
+    await this.twoFactorAuthRepository.saveRecoveryKeysForUserWithId(
+      userId,
+      recoveryKeys,
+    );
+
+    return recoveryKeys.map((keyObject) => keyObject.key);
+  }
+
+  async enable2fa(userId: number, providedToken: string): Promise<string[]> {
+    const twoFactorAuth =
+      await this.twoFactorAuthRepository.get2faForUserWithId(userId);
+
+    if (twoFactorAuth?.isEnabled) {
+      throw new BadRequestException('You have already enabled 2FA');
+    }
+
+    if (!twoFactorAuth?.secretKey) {
+      throw new ForbiddenException(
+        'Cannot enable QR Code. Re-generate QR code, scan it and try again with new token',
+      );
+    }
+    if (authenticator.check(providedToken, twoFactorAuth.secretKey)) {
+      await this.twoFactorAuthRepository.enable2faForUserWithId(userId);
+      return this.generate2faRecoveryKeys(userId);
+    } else {
+      throw new BadRequestException('Incorrect 2FA token');
+    }
+  }
+
+  async disable2fa(userId: number): Promise<TwoFactorAuth> {
+    const twoFactorAuth =
+      await this.twoFactorAuthRepository.get2faForUserWithId(userId);
+
+    if (!twoFactorAuth) {
+      throw new BadRequestException(
+        'Could not disable 2FA, because it was not enabled',
+      );
+    }
+    return this.twoFactorAuthRepository.disable2faForUserWithId(userId);
   }
 }

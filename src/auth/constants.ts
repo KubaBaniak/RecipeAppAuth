@@ -6,6 +6,8 @@ export const BCRYPT = {
 
 export const SERVICE_NAME = 'Recipe App';
 
+export const NUMBER_OF_2FA_RECOVERY_KEYS = 8;
+
 export const AUTH = {
   AUTH_TOKEN: process.env.JWT_SECRET ?? 'DefaultAUTH',
   AUTH_TOKEN_EXPIRY_TIME: process.env.JWT_EXPIRY_TIME ?? '1h',
