@@ -3,13 +3,13 @@ import { ApiProperty } from '@nestjs/swagger';
 ApiProperty;
 export class SignUpResponse {
   @ApiProperty()
-  public userId: number;
+  public accountActivationToken: string;
 
-  constructor(userId: number) {
-    this.userId = userId;
+  constructor(accountActivationToken: string) {
+    this.accountActivationToken = accountActivationToken;
   }
 
-  public static from(userId: number): SignUpResponse {
-    return new SignUpResponse(userId);
+  public static from(accountActivationToken: string): SignUpResponse {
+    return new SignUpResponse(accountActivationToken);
   }
 }

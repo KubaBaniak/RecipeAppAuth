@@ -8,8 +8,6 @@ import {
   PendingUserCredentialsRepository,
   PersonalAccessTokenRepository,
 } from './repositories';
-import { LocalAuthGuard } from './guards';
-import { LocalStrategy } from './strategies';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
@@ -21,8 +19,6 @@ import { JwtService } from '@nestjs/jwt';
     PendingUserCredentialsRepository,
     PersonalAccessTokenRepository,
     PrismaService,
-    LocalStrategy,
-    LocalAuthGuard,
   ],
   controllers: [AuthController],
   exports: [AuthService],
