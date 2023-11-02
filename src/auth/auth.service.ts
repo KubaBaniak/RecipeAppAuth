@@ -102,9 +102,16 @@ export class AuthService {
   }
 
   async validateAuthToken(token: string): Promise<{ id: number }> {
-    return this.jwtService.verify(token, {
-      secret: AUTH.AUTH_TOKEN,
-    });
+    try {
+      return this.jwtService.verify(token, {
+        secret: AUTH.AUTH_TOKEN,
+      });
+    } catch {
+      throw new RpcException({
+        message: 'Unauthorized. Invalid Token',
+        status: 401,
+      });
+    }
   }
 
   async validateUser(request: UserCredentialsRequest): Promise<number> {
@@ -157,6 +164,7 @@ export class AuthService {
         userId,
         hashedPassword,
       );
+
     return updatedCredentials.userId;
   }
 

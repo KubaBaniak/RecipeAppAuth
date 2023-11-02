@@ -22,7 +22,7 @@ import {
   ApiOperation,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
-import { RabbitRPC, RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import { RabbitRPC } from '@golevelup/nestjs-rabbitmq';
 import { ReplyErrorCallback } from './error-callback';
 
 @Controller('auth')
@@ -122,12 +122,12 @@ export class AuthController {
   }: {
     userId: number;
   }): Promise<string> {
-    return await this.authService.generateResetPasswordToken(userId);
+    return this.authService.generateResetPasswordToken(userId);
   }
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Changes password of the user' })
-  @RabbitSubscribe({
+  @RabbitRPC({
     exchange: 'authentication',
     routingKey: 'change-password',
     errorHandler: ReplyErrorCallback,
