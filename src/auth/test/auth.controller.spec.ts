@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { faker } from '@faker-js/faker';
 import { AUTH, MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
 import { JwtService } from '@nestjs/jwt';
+import { authenticator } from 'otplib';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -140,6 +141,32 @@ describe('AuthController', () => {
       await authController.disable2fa(request);
 
       expect(authService.disable2fa).toHaveBeenCalled();
+    });
+
+    it('should verify 2fa token', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+        token: authenticator.generate(authenticator.generateSecret()),
+      };
+
+      const { accessToken } = await authController.verify2FA(request);
+
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
+    });
+
+    it('should regenerate recovery keys', async () => {
+      const request = {
+        userId: faker.number.int({ max: MAX_INT32 }),
+      };
+
+      const { recoveryKeys } = await authController.regenerateRecoveryKeys(
+        request,
+      );
+
+      expect(recoveryKeys).toBeDefined();
+      expect(recoveryKeys).toBeInstanceOf(Array<string>);
+      expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
     });
   });
 });

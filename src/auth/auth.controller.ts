@@ -17,10 +17,12 @@ import {
   Disable2faRequest,
   Enable2faRequest,
   RecoveryKeysRespnse,
+  RegenerateRecoveryKeysRequest,
   SignInRequest,
   SignInResponse,
   SignUpRequest,
   SignUpResponse,
+  Verify2faRequest,
 } from './dto';
 import {
   ApiTags,
@@ -125,5 +127,32 @@ export class AuthController {
     @Body() disable2faRequest: Disable2faRequest,
   ): Promise<void> {
     await this.authService.disable2fa(disable2faRequest.userId);
+  }
+
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Authenticate with 2FA to login' })
+  @Post('verify-2fa')
+  async verify2FA(
+    @Body() verify2faRequest: Verify2faRequest,
+  ): Promise<SignInResponse> {
+    const accessToken = await this.authService.verify2fa(
+      verify2faRequest.userId,
+      verify2faRequest.token,
+    );
+
+    return SignInResponse.from(accessToken);
+  }
+
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Regenerate recovery keys for 2FA' })
+  @Post('regenerate-2fa-recovery-keys')
+  async regenerateRecoveryKeys(
+    @Body() regenerateRecoveryKeysRequest: RegenerateRecoveryKeysRequest,
+  ): Promise<RecoveryKeysRespnse> {
+    const recoveryKeys = await this.authService.generate2faRecoveryKeys(
+      regenerateRecoveryKeysRequest.userId,
+    );
+
+    return RecoveryKeysRespnse.from(recoveryKeys);
   }
 }

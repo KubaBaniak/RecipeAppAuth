@@ -7,17 +7,17 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  AUTH,
+  BCRYPT,
+  NUMBER_OF_2FA_RECOVERY_KEYS,
+  SERVICE_NAME,
+} from './constants';
+import {
   PersonalAccessTokenRepository,
   UserCredentialsRepository,
   PendingUserCredentialsRepository,
   TwoFactorAuthRepository,
 } from './repositories';
-import {
-  AUTH,
-  BCRYPT,
-  SERVICE_NAME,
-  NUMBER_OF_2FA_RECOVERY_KEYS,
-} from './constants';
 import * as bcrypt from 'bcryptjs';
 import {
   ChangePasswordRequest,
@@ -80,6 +80,7 @@ export class AuthService {
 
     return savedCredentials.userId;
   }
+
   async signIn(signInRequest: SignInRequest): Promise<string> {
     const userCredentials =
       await this.userCredentialsRepository.getUserCredentialsByUserId(
@@ -251,5 +252,35 @@ export class AuthService {
       );
     }
     return this.twoFactorAuthRepository.disable2faForUserWithId(userId);
+  }
+
+  async verify2fa(userId: number, token: string): Promise<string> {
+    const twoFactorAuth =
+      await this.twoFactorAuthRepository.get2faForUserWithId(userId);
+    const keys =
+      await this.twoFactorAuthRepository.getRecoveryKeysForUserWithId(userId);
+
+    if (!twoFactorAuth || !twoFactorAuth.isEnabled) {
+      throw new ForbiddenException('2FA is not enabled');
+    }
+
+    if (keys?.some(({ key, isUsed }) => key === token && !isUsed)) {
+      await this.twoFactorAuthRepository.expire2faRecoveryKey(token);
+      return this.generateToken(
+        userId,
+        process.env.JWT_SECRET ?? 'Default_jwt_secret',
+        process.env.JWT_EXPIRY_TIME ?? '1h',
+      );
+    }
+
+    if (authenticator.check(token, twoFactorAuth?.secretKey)) {
+      return this.generateToken(
+        userId,
+        process.env.JWT_SECRET ?? 'Default_jwt_secret',
+        process.env.JWT_EXPIRY_TIME ?? '1h',
+      );
+    }
+
+    throw new UnauthorizedException('Incorrect 2FA token');
   }
 }

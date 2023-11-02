@@ -1,5 +1,9 @@
-import { TwoFactorAuth } from '@prisma/client';
-import { create2fa } from '../test/twoFactorAuth.factory';
+import { TwoFactorAuth, TwoFactorAuthRecoveryKey } from '@prisma/client';
+import {
+  create2fa,
+  createExpiredKey,
+  createRecoveryKeysWithKeyAndIsUsed,
+} from '../test/twoFactorAuth.factory';
 
 export class MockTwoFactorAuthRepository {
   save2faSecretKeyForUserWithId(
@@ -21,7 +25,19 @@ export class MockTwoFactorAuthRepository {
     return Promise.resolve(create2fa({ userId }));
   }
 
-  async saveRecoveryKeysForUserWithId(): Promise<void> {
+  expire2faRecoveryKey(key: string): Promise<TwoFactorAuthRecoveryKey> {
+    return Promise.resolve(createExpiredKey(key));
+  }
+
+  saveRecoveryKeysForUserWithId(): Promise<void> {
     return Promise.resolve();
+  }
+
+  getRecoveryKeysForUserWithId(
+    userId: number,
+  ): Promise<{ key: string; isUsed: boolean }[] | null> {
+    return Promise.all(
+      createRecoveryKeysWithKeyAndIsUsed({ twoFactorAuthUserId: userId }),
+    );
   }
 }

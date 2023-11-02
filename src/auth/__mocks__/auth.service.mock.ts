@@ -1,7 +1,8 @@
 import { ChangePasswordRequest, SignUpRequest } from '../dto';
 import { JwtService } from '@nestjs/jwt';
-import { AUTH, MAX_INT32 } from '../constants';
+import { AUTH, MAX_INT32, NUMBER_OF_2FA_RECOVERY_KEYS } from '../constants';
 import { faker } from '@faker-js/faker';
+import { authenticator } from 'otplib';
 
 export class MockAuthService {
   signUp(signUpRequest: SignUpRequest): Promise<number> {
@@ -60,5 +61,20 @@ export class MockAuthService {
       secretKey: faker.string.alphanumeric({ length: 8 }),
       isEnabled: true,
     });
+  }
+
+  verify2fa(): Promise<string> {
+    return Promise.resolve(faker.string.alphanumeric({ length: 64 }));
+  }
+
+  generate2faRecoveryKeys(): Promise<string[]> {
+    const recoveryKeys = Array.from(
+      { length: NUMBER_OF_2FA_RECOVERY_KEYS },
+      () => {
+        return { key: authenticator.generateSecret() };
+      },
+    );
+
+    return Promise.all(recoveryKeys.map((keyObject) => keyObject.key));
   }
 }

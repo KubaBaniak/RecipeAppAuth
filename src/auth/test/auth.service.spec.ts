@@ -23,7 +23,10 @@ import {
 } from '../__mocks__';
 import { JwtService } from '@nestjs/jwt';
 import { authenticator } from 'otplib';
-import { create2fa } from './twoFactorAuth.factory';
+import {
+  create2fa,
+  createRecoveryKeysWithKeyAndIsUsed,
+} from './twoFactorAuth.factory';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -235,6 +238,70 @@ describe('AuthService', () => {
 
       expect(twoFactorAuthObject).toBeDefined();
       expect(twoFactorAuthObject.isEnabled).toEqual(false);
+    });
+
+    it('should verify normal 2fa token', async () => {
+      const twoFactorAuthSecret = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const token = authenticator.generate(twoFactorAuthSecret);
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(
+          create2fa({
+            userId,
+            secretKey: twoFactorAuthSecret,
+            isEnabled: true,
+          }),
+        );
+
+      const accessToken = await authService.verify2fa(userId, token);
+
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
+    });
+
+    it('should verify 2fa recovery token', async () => {
+      const twoFactorAuthSecret = authenticator.generateSecret();
+      const userId = faker.number.int({ max: MAX_INT32 });
+      const recoveryKeys = createRecoveryKeysWithKeyAndIsUsed({
+        secretKey: twoFactorAuthSecret,
+      });
+      jest
+        .spyOn(twoFactorAuthRepository, 'get2faForUserWithId')
+        .mockResolvedValueOnce(
+          create2fa({
+            userId,
+            secretKey: twoFactorAuthSecret,
+            isEnabled: true,
+          }),
+        );
+      jest
+        .spyOn(twoFactorAuthRepository, 'getRecoveryKeysForUserWithId')
+        .mockResolvedValueOnce(
+          createRecoveryKeysWithKeyAndIsUsed({
+            secretKey: twoFactorAuthSecret,
+          }),
+        );
+      jest.spyOn(twoFactorAuthRepository, 'expire2faRecoveryKey');
+
+      const accessToken = await authService.verify2fa(
+        userId,
+        recoveryKeys[0].key,
+      );
+
+      expect(accessToken).toBeDefined();
+      expect(typeof accessToken).toBe('string');
+      expect(twoFactorAuthRepository.expire2faRecoveryKey).toHaveBeenCalled();
+    });
+
+    it('should regenerate recovery keys for 2FA', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const recoveryKeys = await authService.generate2faRecoveryKeys(userId);
+
+      expect(recoveryKeys).toBeDefined();
+      expect(recoveryKeys).toBeInstanceOf(Array<string>);
+      expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
     });
   });
 });
