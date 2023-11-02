@@ -9,8 +9,27 @@ import {
   PersonalAccessTokenRepository,
 } from './repositories';
 import { JwtService } from '@nestjs/jwt';
+import {
+  MessageHandlerErrorBehavior,
+  RabbitMQModule,
+} from '@golevelup/nestjs-rabbitmq';
 
 @Module({
+  imports: [
+    RabbitMQModule.forRoot(RabbitMQModule, {
+      defaultSubscribeErrorBehavior: MessageHandlerErrorBehavior.NACK,
+      defaultRpcErrorBehavior: MessageHandlerErrorBehavior.NACK,
+      exchanges: [
+        {
+          name: 'authentication',
+          type: 'topic',
+        },
+      ],
+      uri: 'amqp://127.0.0.1:5672',
+      enableControllerDiscovery: true,
+    }),
+    AuthModule,
+  ],
   providers: [
     AuthService,
     JwtService,
@@ -21,6 +40,6 @@ import { JwtService } from '@nestjs/jwt';
     PrismaService,
   ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [RabbitMQModule],
 })
 export class AuthModule {}

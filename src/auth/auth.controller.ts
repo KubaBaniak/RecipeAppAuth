@@ -22,24 +22,32 @@ import {
   ApiOperation,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { RabbitRPC, RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import { ReplyErrorCallback } from './error-callback';
 
 @Controller('auth')
 @ApiTags('Authentication')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'signup',
+    errorHandler: ReplyErrorCallback,
+  })
   @HttpCode(201)
   @ApiOperation({ summary: 'Add user to database' })
   @ApiBadRequestResponse({ description: 'Wrong credentials provided' })
   @ApiForbiddenResponse({
     description: 'Cannot add User to database, use different credentials',
   })
-  @MessagePattern('signup')
-  async signUp(
-    @Payload() signUpRequest: SignUpRequest,
-  ): Promise<SignUpResponse> {
-    const userId = await this.authService.signUp(signUpRequest);
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'signup',
+    errorHandler: ReplyErrorCallback,
+  })
+  async signUp(test: SignUpRequest): Promise<SignUpResponse> {
+    const userId = await this.authService.signUp(test);
 
     const accountActivationToken =
       await this.authService.generateAccountActivationToken(userId);
@@ -49,10 +57,12 @@ export class AuthController {
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Authenticate user' })
-  @MessagePattern('signin')
-  async signIn(
-    @Payload() signInRequest: SignInRequest,
-  ): Promise<SignInResponse> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'signin',
+    errorHandler: ReplyErrorCallback,
+  })
+  async signIn(signInRequest: SignInRequest): Promise<SignInResponse> {
     const accessToken = await this.authService.signIn(signInRequest);
 
     return SignInResponse.from(accessToken);
@@ -60,10 +70,12 @@ export class AuthController {
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Validate user' })
-  @MessagePattern('validate-user')
-  async validateUser(
-    @Payload() validationData: SignInRequest,
-  ): Promise<number> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'validate-user',
+    errorHandler: ReplyErrorCallback,
+  })
+  async validateUser(validationData: SignInRequest): Promise<number> {
     const validatedUserId = await this.authService.validateUser(validationData);
 
     return validatedUserId;
@@ -71,10 +83,12 @@ export class AuthController {
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Validate jwt Token' })
-  @MessagePattern('validate-auth-token')
-  async validateAuthToken(
-    @Payload() { token }: { token: string },
-  ): Promise<number> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'validate-jwt-token',
+    errorHandler: ReplyErrorCallback,
+  })
+  async validateAuthToken({ token }: { token: string }): Promise<number> {
     const jwtPayload = await this.authService.validateAuthToken(token);
 
     return jwtPayload.id;
@@ -82,9 +96,13 @@ export class AuthController {
 
   @HttpCode(201)
   @ApiOperation({ summary: 'Add personal access token for user' })
-  @MessagePattern('create-personal-access-token')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'add-personal-access-token',
+    errorHandler: ReplyErrorCallback,
+  })
   async createPat(
-    @Payload() createPatRequest: CreatePatRequest,
+    createPatRequest: CreatePatRequest,
   ): Promise<CreatePatResponse> {
     const personalAccessToken =
       await this.authService.createPersonalAccessToken(createPatRequest.userId);
@@ -94,27 +112,39 @@ export class AuthController {
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Generates token for password reset' })
-  @MessagePattern('generate-password-reset-token')
-  async generatePasswordResetToken(
-    @Payload() { userId }: { userId: number },
-  ): Promise<string> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'generate-password-reset-token',
+    errorHandler: ReplyErrorCallback,
+  })
+  async generatePasswordResetToken({
+    userId,
+  }: {
+    userId: number;
+  }): Promise<string> {
     return await this.authService.generateResetPasswordToken(userId);
   }
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Changes password of the user' })
-  @MessagePattern('change-password')
+  @RabbitSubscribe({
+    exchange: 'authentication',
+    routingKey: 'change-password',
+    errorHandler: ReplyErrorCallback,
+  })
   async changePassword(
-    @Payload() changePasswordRequest: ChangePasswordRequest,
+    changePasswordRequest: ChangePasswordRequest,
   ): Promise<number> {
     return this.authService.changePassword(changePasswordRequest);
   }
 
   @HttpCode(200)
-  @MessagePattern('activate-account')
-  async activateAccount(
-    @Payload() { token }: { token: string },
-  ): Promise<number> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'activate-account',
+    errorHandler: ReplyErrorCallback,
+  })
+  async activateAccount({ token }: { token: string }): Promise<number> {
     const { id: userId } = await this.authService.verifyAccountActivationToken(
       token,
     );
@@ -129,9 +159,13 @@ export class AuthController {
     summary:
       'Creates QR code for user to scan it for auth app (like Google Authenticator)',
   })
-  @MessagePattern('create-2fa-qrcode')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'create-2fa-qrcode',
+    errorHandler: ReplyErrorCallback,
+  })
   async create2faQrCode(
-    @Payload() create2faQrCodeRequest: Create2faQrCodeRequest,
+    create2faQrCodeRequest: Create2faQrCodeRequest,
   ): Promise<Create2faQrCodeResponse> {
     const qrCode = await this.authService.createQrCodeFor2fa(
       create2faQrCodeRequest.userId,
@@ -144,9 +178,13 @@ export class AuthController {
   @ApiOperation({
     summary: 'Enables 2FA authentication for user',
   })
-  @MessagePattern('enable-2fa')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'enable-2fa',
+    errorHandler: ReplyErrorCallback,
+  })
   async enable2FA(
-    @Payload() enable2faRequest: Enable2faRequest,
+    enable2faRequest: Enable2faRequest,
   ): Promise<RecoveryKeysRespnse> {
     const recoveryKeys = await this.authService.enable2fa(
       enable2faRequest.userId,
@@ -158,10 +196,12 @@ export class AuthController {
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Disables 2FA for logged user' })
-  @MessagePattern('disable-2fa')
-  async disable2fa(
-    @Payload() disable2faRequest: Disable2faRequest,
-  ): Promise<number> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'disable-2fa',
+    errorHandler: ReplyErrorCallback,
+  })
+  async disable2fa(disable2faRequest: Disable2faRequest): Promise<number> {
     const twoFactorObject = await this.authService.disable2fa(
       disable2faRequest.userId,
     );
@@ -171,10 +211,12 @@ export class AuthController {
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Authenticate with 2FA to login' })
-  @MessagePattern('verify-2fa')
-  async verify2FA(
-    @Payload() verify2faRequest: Verify2faRequest,
-  ): Promise<SignInResponse> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'verify-2fa',
+    errorHandler: ReplyErrorCallback,
+  })
+  async verify2FA(verify2faRequest: Verify2faRequest): Promise<SignInResponse> {
     const accessToken = await this.authService.verify2fa(
       verify2faRequest.userId,
       verify2faRequest.token,
@@ -185,9 +227,13 @@ export class AuthController {
 
   @HttpCode(201)
   @ApiOperation({ summary: 'Regenerate recovery keys for 2FA' })
-  @MessagePattern('regenerate-2fa-recovery-keys')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'regenerate-2fa-recovery-keys',
+    errorHandler: ReplyErrorCallback,
+  })
   async regenerateRecoveryKeys(
-    @Payload() regenerateRecoveryKeysRequest: RegenerateRecoveryKeysRequest,
+    regenerateRecoveryKeysRequest: RegenerateRecoveryKeysRequest,
   ): Promise<RecoveryKeysRespnse> {
     const recoveryKeys = await this.authService.generate2faRecoveryKeys(
       regenerateRecoveryKeysRequest.userId,

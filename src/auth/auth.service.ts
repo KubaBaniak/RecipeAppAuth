@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   AUTH,
   BCRYPT,
@@ -66,7 +61,7 @@ export class AuthService {
     ]);
 
     if (pendingUserCredentials || userCredentials) {
-      throw new RpcException('Forbidden');
+      throw new RpcException({ message: 'Forbidden', status: 403 });
     }
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT.SALT);
@@ -89,12 +84,12 @@ export class AuthService {
     ]);
 
     if (!userCredentials) {
-      throw new UnauthorizedException();
+      throw new RpcException({ message: 'Unauthorized', status: 401 });
     }
 
     if (user2fa?.isEnabled) {
       if (!signInRequest.token) {
-        throw new RpcException(new UnauthorizedException());
+        throw new RpcException({ message: 'Unauthorized', status: 401 });
       }
       return this.verify2fa(userCredentials.userId, signInRequest.token);
     }
@@ -119,9 +114,7 @@ export class AuthService {
       );
 
     if (!userCredentials) {
-      throw new RpcException(
-        new UnauthorizedException('Please authorize first'),
-      );
+      throw new RpcException({ message: 'Unauthorized', status: 401 });
     }
 
     const isMatch = await bcrypt.compare(
@@ -130,9 +123,7 @@ export class AuthService {
     );
 
     if (!isMatch) {
-      throw new RpcException(
-        new UnauthorizedException('Please authorize first'),
-      );
+      throw new RpcException({ message: 'Unauthorized', status: 401 });
     }
 
     return userCredentials.userId;
@@ -200,9 +191,11 @@ export class AuthService {
         secret: AUTH.ACCOUNT_ACTIVATION,
       });
     } catch {
-      throw new RpcException(
-        'Invalid token. Please provide a valid token to activate account',
-      );
+      throw new RpcException({
+        message:
+          'Invalid token. Please provide a valid token to activate account',
+        status: 401,
+      });
     }
   }
 
@@ -213,9 +206,11 @@ export class AuthService {
       );
 
     if (!userData) {
-      throw new RpcException(
-        'User account data for activation was not found. Please ensure you provided correct token or check if User is already activated',
-      );
+      throw new RpcException({
+        message:
+          'User account data for activation was not found. Please ensure you provided correct token or check if User is already activated',
+        status: 404,
+      });
     }
 
     const activatedUserCredentials =
@@ -266,24 +261,25 @@ export class AuthService {
       await this.twoFactorAuthRepository.get2faForUserWithId(userId);
 
     if (twoFactorAuth?.isEnabled) {
-      throw new RpcException(
-        new BadRequestException('You have already enabled 2FA'),
-      );
+      throw new RpcException({
+        message: 'You have already enabled 2FA',
+        status: 400,
+      });
     }
 
     if (!twoFactorAuth?.secretKey) {
-      throw new RpcException(
-        new ForbiddenException(
+      throw new RpcException({
+        message:
           'Cannot enable QR Code. Re-generate QR code, scan it and try again with new token',
-        ),
-      );
+        status: 403,
+      });
     }
 
     if (authenticator.check(token, twoFactorAuth.secretKey)) {
       await this.twoFactorAuthRepository.enable2faForUserWithId(userId);
       return this.generate2faRecoveryKeys(userId);
     } else {
-      throw new RpcException(new BadRequestException('Incorrect 2FA token'));
+      throw new RpcException({ message: 'Incorrect 2FA token', status: 400 });
     }
   }
 
@@ -292,11 +288,10 @@ export class AuthService {
       await this.twoFactorAuthRepository.get2faForUserWithId(userId);
 
     if (!twoFactorAuth) {
-      throw new RpcException(
-        new BadRequestException(
-          'Could not disable 2FA, because it was not enabled',
-        ),
-      );
+      throw new RpcException({
+        message: 'Could not disable 2FA, because it was not enabled',
+        status: 400,
+      });
     }
 
     return this.twoFactorAuthRepository.disable2faForUserWithId(userId);
@@ -309,7 +304,7 @@ export class AuthService {
       await this.twoFactorAuthRepository.getRecoveryKeysForUserWithId(userId);
 
     if (!twoFactorAuth || !twoFactorAuth.isEnabled) {
-      throw new RpcException(new ForbiddenException('2FA is not enabled'));
+      throw new RpcException({ message: '2FA is not enabled', status: 403 });
     }
 
     if (keys?.some(({ key, isUsed }) => key === token && !isUsed)) {
@@ -329,6 +324,6 @@ export class AuthService {
       );
     }
 
-    throw new RpcException(new UnauthorizedException('Incorrect 2FA token'));
+    throw new RpcException({ message: 'Incorrect 2FA token', status: 400 });
   }
 }
