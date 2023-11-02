@@ -8,9 +8,9 @@ defaults: &defaults
     - image: cimg/postgres:14.1
     - image: rabbitmq:3.13.0-rc.1-alpine
       environment:
-        RABBITMQ_DEFAULT_USER: test
-        RABBITMQ_DEFAULT_PASS: test
-        AMQP_URL: amqp://127.0.0.1:5672
+        RABBITMQ_DEFAULT_USER: user
+        RABBITMQ_DEFAULT_PASS: password
+        AMQP_URL: amqp://user:password@127.0.0.1:5672
 
 commands:
   install_dependencies:
