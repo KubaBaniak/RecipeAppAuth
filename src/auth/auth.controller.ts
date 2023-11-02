@@ -17,6 +17,7 @@ import {
   Disable2faRequest,
   Enable2faRequest,
   RecoveryKeysRespnse,
+  RegenerateRecoveryKeysRequest,
   SignInRequest,
   SignInResponse,
   SignUpRequest,
@@ -140,5 +141,18 @@ export class AuthController {
     );
 
     return SignInResponse.from(accessToken);
+  }
+
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Regenerate recovery keys for 2FA' })
+  @Post('regenerate-2fa-recovery-keys')
+  async regenerateRecoveryKeys(
+    @Body() regenerateRecoveryKeysRequest: RegenerateRecoveryKeysRequest,
+  ): Promise<RecoveryKeysRespnse> {
+    const recoveryKeys = await this.authService.generate2faRecoveryKeys(
+      regenerateRecoveryKeysRequest.userId,
+    );
+
+    return RecoveryKeysRespnse.from(recoveryKeys);
   }
 }

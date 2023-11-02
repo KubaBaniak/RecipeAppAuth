@@ -293,5 +293,15 @@ describe('AuthService', () => {
       expect(typeof accessToken).toBe('string');
       expect(twoFactorAuthRepository.expire2faRecoveryKey).toHaveBeenCalled();
     });
+
+    it('should regenerate recovery keys for 2FA', async () => {
+      const userId = faker.number.int({ max: MAX_INT32 });
+
+      const recoveryKeys = await authService.generate2faRecoveryKeys(userId);
+
+      expect(recoveryKeys).toBeDefined();
+      expect(recoveryKeys).toBeInstanceOf(Array<string>);
+      expect(recoveryKeys).toHaveLength(NUMBER_OF_2FA_RECOVERY_KEYS);
+    });
   });
 });
