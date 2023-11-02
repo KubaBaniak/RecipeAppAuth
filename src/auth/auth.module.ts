@@ -25,7 +25,7 @@ import {
           type: 'topic',
         },
       ],
-      uri: 'amqp://127.0.0.1:5672',
+      uri: 'amqp://user:password@127.0.0.1:5672',
       enableControllerDiscovery: true,
     }),
     AuthModule,
