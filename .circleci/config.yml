@@ -133,11 +133,11 @@ jobs:
       - run:
           name: Send image to server
           command: |
-            scp -o StrictHostKeyChecking=accept-new ./appimage.tar.gz $SSH_USER@$SSH_HOST:auth/auth_service_app.tar.gz
+            scp -o StrictHostKeyChecking=accept-new auth_service_app.tar.gz $SSH_USER@$SSH_HOST:auth/auth_service_app.tar.gz
       - run:
           name: Send docker compose file
           command: |
-            scp -o StrictHostKeyChecking=accept-new ./docker-compose.yml $SSH_USER@$SSH_HOST:auth/docker-compose.yml
+            scp -o StrictHostKeyChecking=accept-new docker-compose.yml $SSH_USER@$SSH_HOST:auth/docker-compose.yml
       - run:
           name: Deploy over SSH
           command: |
