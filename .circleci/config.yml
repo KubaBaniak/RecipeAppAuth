@@ -125,7 +125,7 @@ jobs:
       - run:
           name: Save built image
           command: docker save $APP_IMAGE_NAME | gzip > auth_service_app.tar.gz
-      - create_env_files
+      - create_envs
       - run:
           name: Send production env
           command: |
