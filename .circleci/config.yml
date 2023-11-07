@@ -124,7 +124,7 @@ jobs:
           command: docker build -t $APP_IMAGE_NAME .
       - run:
           name: Save built image
-          command: docker save $APP_IMAGE_NAME | gzip > auth_service_app.tar.gz
+          command: docker save $APP_IMAGE_NAME | gzip > $APP_IMAGE_NAME.tar.gz
       - create_envs
       - run:
           name: Send production env
@@ -133,7 +133,7 @@ jobs:
       - run:
           name: Send image to server
           command: |
-            scp -o StrictHostKeyChecking=accept-new auth_service_app.tar.gz $SSH_USER@$SSH_HOST:auth/auth_service_app.tar.gz
+            scp -o StrictHostKeyChecking=accept-new $APP_IMAGE_NAME.tar.gz $SSH_USER@$SSH_HOST:auth/$APP_IMAGE_NAME.tar.gz
       - run:
           name: Send docker compose file
           command: |
