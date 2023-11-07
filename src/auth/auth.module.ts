@@ -13,6 +13,7 @@ import {
   MessageHandlerErrorBehavior,
   RabbitMQModule,
 } from '@golevelup/nestjs-rabbitmq';
+import { RABBITMQ_URL_ADDRESS } from './constants';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import {
           type: 'topic',
         },
       ],
-      uri: 'amqp://user:password@127.0.0.1:5672',
+      uri: RABBITMQ_URL_ADDRESS,
       enableControllerDiscovery: true,
     }),
     AuthModule,
