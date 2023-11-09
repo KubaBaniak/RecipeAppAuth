@@ -46,8 +46,8 @@ export class AuthController {
     routingKey: 'signup',
     errorHandler: ReplyErrorCallback,
   })
-  async signUp(test: SignUpRequest): Promise<SignUpResponse> {
-    const userId = await this.authService.signUp(test);
+  async signUp(signUpRequest: SignUpRequest): Promise<SignUpResponse> {
+    const userId = await this.authService.signUp(signUpRequest);
 
     const accountActivationToken =
       await this.authService.generateAccountActivationToken(userId);
@@ -82,7 +82,7 @@ export class AuthController {
   }
 
   @HttpCode(200)
-  @ApiOperation({ summary: 'Validate jwt Token' })
+  @ApiOperation({ summary: 'Validate JWT' })
   @RabbitRPC({
     exchange: 'authentication',
     routingKey: 'validate-jwt-token',
