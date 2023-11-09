@@ -168,3 +168,7 @@ workflows:
     jobs:
       - deploy:
           context: recipe-app-auth-production
+          filters:
+            branches:
+              only:
+                - main
