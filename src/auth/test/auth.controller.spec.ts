@@ -42,7 +42,7 @@ describe('AuthController', () => {
       const signedUpUser = await authController.signUp(request);
 
       //then
-      expect(signedUpUser.userId).toEqual(request.userId);
+      expect(typeof signedUpUser.accountActivationToken).toEqual('string');
     });
   });
 
@@ -100,7 +100,7 @@ describe('AuthController', () => {
       const token = faker.string.alphanumeric({ length: 64 });
       jest.spyOn(authService, 'activateAccount');
 
-      await authController.activateAccount(token);
+      await authController.activateAccount({ token });
 
       expect(authService.activateAccount).toHaveBeenCalled();
     });
@@ -116,7 +116,6 @@ describe('AuthController', () => {
 
       expect(qrCodeObject).toBeDefined();
       expect(typeof qrCodeObject.qrCodeUrl).toBe('string');
-      expect(typeof qrCodeObject.urlToEnable2FA).toBe('string');
     });
 
     it('should enable 2fa', async () => {

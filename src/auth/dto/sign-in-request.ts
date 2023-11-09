@@ -23,4 +23,9 @@ export class SignInRequest {
   @IsString()
   @ApiProperty()
   readonly password: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty()
+  readonly token?: string;
 }

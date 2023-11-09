@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   AUTH,
   BCRYPT,
@@ -30,6 +23,12 @@ import 'dotenv/config';
 import qrcode from 'qrcode';
 import { authenticator } from 'otplib';
 import { TwoFactorAuth } from '@prisma/client';
+import {
+  BadRequestRpcException,
+  ForbiddenRpcException,
+  NotFoundRpcException,
+  UnauthorizedRpcException,
+} from './utils/errors';
 
 @Injectable()
 export class AuthService {
@@ -67,7 +66,7 @@ export class AuthService {
     ]);
 
     if (pendingUserCredentials || userCredentials) {
-      throw new ConflictException();
+      throw new ForbiddenRpcException();
     }
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT.SALT);
@@ -82,13 +81,22 @@ export class AuthService {
   }
 
   async signIn(signInRequest: SignInRequest): Promise<string> {
-    const userCredentials =
-      await this.userCredentialsRepository.getUserCredentialsByUserId(
+    const [user2fa, userCredentials] = await Promise.all([
+      this.twoFactorAuthRepository.get2faForUserWithId(signInRequest.userId),
+      this.userCredentialsRepository.getUserCredentialsByUserId(
         signInRequest.userId,
-      );
+      ),
+    ]);
 
     if (!userCredentials) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedRpcException();
+    }
+
+    if (user2fa?.isEnabled) {
+      if (!signInRequest.token) {
+        throw new UnauthorizedRpcException();
+      }
+      return this.verify2fa(userCredentials.userId, signInRequest.token);
     }
 
     return this.generateToken(
@@ -98,6 +106,16 @@ export class AuthService {
     );
   }
 
+  async validateAuthToken(token: string): Promise<{ id: number }> {
+    try {
+      return this.jwtService.verify(token, {
+        secret: AUTH.AUTH_TOKEN,
+      });
+    } catch {
+      throw new UnauthorizedRpcException();
+    }
+  }
+
   async validateUser(request: UserCredentialsRequest): Promise<number> {
     const userCredentials =
       await this.userCredentialsRepository.getUserCredentialsByUserId(
@@ -105,7 +123,7 @@ export class AuthService {
       );
 
     if (!userCredentials) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedRpcException();
     }
 
     const isMatch = await bcrypt.compare(
@@ -114,7 +132,7 @@ export class AuthService {
     );
 
     if (!isMatch) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedRpcException();
     }
 
     return userCredentials.userId;
@@ -152,17 +170,38 @@ export class AuthService {
     return updatedCredentials.userId;
   }
 
+  async generateResetPasswordToken(userId: number): Promise<string> {
+    const userCredentials =
+      await this.userCredentialsRepository.getUserCredentialsByUserId(userId);
+
+    if (!userCredentials) {
+      return '';
+    }
+
+    return this.generateToken(
+      userCredentials.userId,
+      AUTH.PASSWORD_RESET,
+      AUTH.PASSWORD_RESET_TIME,
+    );
+  }
+
+  async generateAccountActivationToken(userId: number): Promise<string> {
+    return this.generateToken(
+      userId,
+      AUTH.ACCOUNT_ACTIVATION,
+      AUTH.ACCOUNT_ACTIVATION_EXPIRY_TIME,
+    );
+  }
+
   async verifyAccountActivationToken(
     jwtToken: string,
   ): Promise<{ id: number }> {
-    const invalidTokenMessage =
-      'Invalid token. Please provide a valid token to activate account';
     try {
       return this.jwtService.verify(jwtToken, {
         secret: AUTH.ACCOUNT_ACTIVATION,
       });
     } catch {
-      throw new UnauthorizedException(invalidTokenMessage);
+      throw new UnauthorizedRpcException();
     }
   }
 
@@ -173,7 +212,7 @@ export class AuthService {
       );
 
     if (!userData) {
-      throw new NotFoundException(
+      throw new NotFoundRpcException(
         'User account data for activation was not found. Please ensure you provided correct token or check if User is already activated',
       );
     }
@@ -221,24 +260,25 @@ export class AuthService {
     return recoveryKeys.map((keyObject) => keyObject.key);
   }
 
-  async enable2fa(userId: number, providedToken: string): Promise<string[]> {
+  async enable2fa(userId: number, token: string): Promise<string[]> {
     const twoFactorAuth =
       await this.twoFactorAuthRepository.get2faForUserWithId(userId);
 
     if (twoFactorAuth?.isEnabled) {
-      throw new BadRequestException('You have already enabled 2FA');
+      throw new BadRequestRpcException('You have already enabled 2FA');
     }
 
     if (!twoFactorAuth?.secretKey) {
-      throw new ForbiddenException(
+      throw new BadRequestRpcException(
         'Cannot enable QR Code. Re-generate QR code, scan it and try again with new token',
       );
     }
-    if (authenticator.check(providedToken, twoFactorAuth.secretKey)) {
+
+    if (authenticator.check(token, twoFactorAuth.secretKey)) {
       await this.twoFactorAuthRepository.enable2faForUserWithId(userId);
       return this.generate2faRecoveryKeys(userId);
     } else {
-      throw new BadRequestException('Incorrect 2FA token');
+      throw new BadRequestRpcException('Incorrect 2FA token');
     }
   }
 
@@ -247,10 +287,11 @@ export class AuthService {
       await this.twoFactorAuthRepository.get2faForUserWithId(userId);
 
     if (!twoFactorAuth) {
-      throw new BadRequestException(
+      throw new BadRequestRpcException(
         'Could not disable 2FA, because it was not enabled',
       );
     }
+
     return this.twoFactorAuthRepository.disable2faForUserWithId(userId);
   }
 
@@ -261,7 +302,7 @@ export class AuthService {
       await this.twoFactorAuthRepository.getRecoveryKeysForUserWithId(userId);
 
     if (!twoFactorAuth || !twoFactorAuth.isEnabled) {
-      throw new ForbiddenException('2FA is not enabled');
+      throw new ForbiddenRpcException('2FA is not enabled');
     }
 
     if (keys?.some(({ key, isUsed }) => key === token && !isUsed)) {
@@ -281,6 +322,6 @@ export class AuthService {
       );
     }
 
-    throw new UnauthorizedException('Incorrect 2FA token');
+    throw new BadRequestRpcException('Incorrect 2FA token');
   }
 }

@@ -11,13 +11,19 @@ export class TwoFactorAuthRepository {
     secretKey: string,
   ): Promise<TwoFactorAuth> {
     const dataObject = {
-      data: {
+      create: {
         userId,
         secretKey,
       },
+      update: {
+        secretKey,
+      },
+      where: {
+        userId,
+      },
     };
 
-    return this.prismaService.twoFactorAuth.create(dataObject);
+    return this.prismaService.twoFactorAuth.upsert(dataObject);
   }
 
   get2faForUserWithId(userId: number): Promise<TwoFactorAuth | null> {

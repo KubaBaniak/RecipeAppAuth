@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Body,
-  Post,
-  HttpCode,
-  UseGuards,
-  Get,
-  Query,
-} from '@nestjs/common';
+import { Controller, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ChangePasswordRequest,
@@ -30,39 +22,87 @@ import {
   ApiOperation,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
-import { LocalAuthGuard } from './guards';
+import { RabbitRPC } from '@golevelup/nestjs-rabbitmq';
+import { ReplyErrorCallback } from './error-callback';
 
 @Controller('auth')
 @ApiTags('Authentication')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'signup',
+    errorHandler: ReplyErrorCallback,
+  })
   @HttpCode(201)
   @ApiOperation({ summary: 'Add user to database' })
   @ApiBadRequestResponse({ description: 'Wrong credentials provided' })
   @ApiForbiddenResponse({
     description: 'Cannot add User to database, use different credentials',
   })
-  @Post('signup')
-  async signUp(@Body() signUpRequest: SignUpRequest): Promise<SignUpResponse> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'signup',
+    errorHandler: ReplyErrorCallback,
+  })
+  async signUp(signUpRequest: SignUpRequest): Promise<SignUpResponse> {
     const userId = await this.authService.signUp(signUpRequest);
-    return { userId };
+
+    const accountActivationToken =
+      await this.authService.generateAccountActivationToken(userId);
+
+    return SignUpResponse.from(accountActivationToken);
   }
+
   @HttpCode(200)
-  @UseGuards(LocalAuthGuard)
   @ApiOperation({ summary: 'Authenticate user' })
-  @Post('signin')
-  async signIn(@Body() signInRequest: SignInRequest): Promise<SignInResponse> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'signin',
+    errorHandler: ReplyErrorCallback,
+  })
+  async signIn(signInRequest: SignInRequest): Promise<SignInResponse> {
     const accessToken = await this.authService.signIn(signInRequest);
 
     return SignInResponse.from(accessToken);
   }
 
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Validate user' })
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'validate-user',
+    errorHandler: ReplyErrorCallback,
+  })
+  async validateUser(validationData: SignInRequest): Promise<number> {
+    const validatedUserId = await this.authService.validateUser(validationData);
+
+    return validatedUserId;
+  }
+
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Validate JWT' })
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'validate-jwt-token',
+    errorHandler: ReplyErrorCallback,
+  })
+  async validateAuthToken({ token }: { token: string }): Promise<number> {
+    const jwtPayload = await this.authService.validateAuthToken(token);
+
+    return jwtPayload.id;
+  }
+
   @HttpCode(201)
   @ApiOperation({ summary: 'Add personal access token for user' })
-  @Post('create-pat')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'add-personal-access-token',
+    errorHandler: ReplyErrorCallback,
+  })
   async createPat(
-    @Body() createPatRequest: CreatePatRequest,
+    createPatRequest: CreatePatRequest,
   ): Promise<CreatePatResponse> {
     const personalAccessToken =
       await this.authService.createPersonalAccessToken(createPatRequest.userId);
@@ -71,21 +111,47 @@ export class AuthController {
   }
 
   @HttpCode(200)
-  @ApiOperation({ summary: 'Changes password of the user' })
-  @Post('change-password')
-  async changePassword(
-    @Body() changePasswordRequest: ChangePasswordRequest,
-  ): Promise<void> {
-    await this.authService.changePassword(changePasswordRequest);
+  @ApiOperation({ summary: 'Generates token for password reset' })
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'generate-password-reset-token',
+    errorHandler: ReplyErrorCallback,
+  })
+  async generatePasswordResetToken({
+    userId,
+  }: {
+    userId: number;
+  }): Promise<string> {
+    return this.authService.generateResetPasswordToken(userId);
   }
 
   @HttpCode(200)
-  @Get('activate-account')
-  async activateAccount(@Query('token') token: string): Promise<void> {
-    const tokenData = await this.authService.verifyAccountActivationToken(
+  @ApiOperation({ summary: 'Changes password of the user' })
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'change-password',
+    errorHandler: ReplyErrorCallback,
+  })
+  async changePassword(
+    changePasswordRequest: ChangePasswordRequest,
+  ): Promise<number> {
+    return this.authService.changePassword(changePasswordRequest);
+  }
+
+  @HttpCode(200)
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'activate-account',
+    errorHandler: ReplyErrorCallback,
+  })
+  async activateAccount({ token }: { token: string }): Promise<number> {
+    const { id: userId } = await this.authService.verifyAccountActivationToken(
       token,
     );
-    await this.authService.activateAccount(tokenData.id);
+
+    await this.authService.activateAccount(userId);
+
+    return userId;
   }
 
   @HttpCode(201)
@@ -93,9 +159,13 @@ export class AuthController {
     summary:
       'Creates QR code for user to scan it for auth app (like Google Authenticator)',
   })
-  @Post('create-2fa-qrcode')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'create-2fa-qrcode',
+    errorHandler: ReplyErrorCallback,
+  })
   async create2faQrCode(
-    @Body() create2faQrCodeRequest: Create2faQrCodeRequest,
+    create2faQrCodeRequest: Create2faQrCodeRequest,
   ): Promise<Create2faQrCodeResponse> {
     const qrCode = await this.authService.createQrCodeFor2fa(
       create2faQrCodeRequest.userId,
@@ -108,33 +178,45 @@ export class AuthController {
   @ApiOperation({
     summary: 'Enables 2FA authentication for user',
   })
-  @Post('enable-2fa')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'enable-2fa',
+    errorHandler: ReplyErrorCallback,
+  })
   async enable2FA(
-    @Body() enable2faRequest: Enable2faRequest,
+    enable2faRequest: Enable2faRequest,
   ): Promise<RecoveryKeysRespnse> {
-    const recoveryKey = await this.authService.enable2fa(
+    const recoveryKeys = await this.authService.enable2fa(
       enable2faRequest.userId,
       enable2faRequest.token,
     );
 
-    return RecoveryKeysRespnse.from(recoveryKey);
+    return RecoveryKeysRespnse.from(recoveryKeys);
   }
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Disables 2FA for logged user' })
-  @Post('disable-2fa')
-  async disable2fa(
-    @Body() disable2faRequest: Disable2faRequest,
-  ): Promise<void> {
-    await this.authService.disable2fa(disable2faRequest.userId);
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'disable-2fa',
+    errorHandler: ReplyErrorCallback,
+  })
+  async disable2fa(disable2faRequest: Disable2faRequest): Promise<number> {
+    const twoFactorObject = await this.authService.disable2fa(
+      disable2faRequest.userId,
+    );
+
+    return twoFactorObject.userId;
   }
 
   @HttpCode(200)
   @ApiOperation({ summary: 'Authenticate with 2FA to login' })
-  @Post('verify-2fa')
-  async verify2FA(
-    @Body() verify2faRequest: Verify2faRequest,
-  ): Promise<SignInResponse> {
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'verify-2fa',
+    errorHandler: ReplyErrorCallback,
+  })
+  async verify2FA(verify2faRequest: Verify2faRequest): Promise<SignInResponse> {
     const accessToken = await this.authService.verify2fa(
       verify2faRequest.userId,
       verify2faRequest.token,
@@ -145,9 +227,13 @@ export class AuthController {
 
   @HttpCode(201)
   @ApiOperation({ summary: 'Regenerate recovery keys for 2FA' })
-  @Post('regenerate-2fa-recovery-keys')
+  @RabbitRPC({
+    exchange: 'authentication',
+    routingKey: 'regenerate-2fa-recovery-keys',
+    errorHandler: ReplyErrorCallback,
+  })
   async regenerateRecoveryKeys(
-    @Body() regenerateRecoveryKeysRequest: RegenerateRecoveryKeysRequest,
+    regenerateRecoveryKeysRequest: RegenerateRecoveryKeysRequest,
   ): Promise<RecoveryKeysRespnse> {
     const recoveryKeys = await this.authService.generate2faRecoveryKeys(
       regenerateRecoveryKeysRequest.userId,

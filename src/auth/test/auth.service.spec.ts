@@ -143,7 +143,7 @@ describe('AuthService', () => {
     it('should change password', async () => {
       const request = {
         userId: faker.number.int({ max: MAX_INT32 }),
-        newPassword: faker.internet.password(),
+        newPassword: faker.internet.password({ length: 64 }),
       };
 
       const userId = await authService.changePassword(request);

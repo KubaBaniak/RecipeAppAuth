@@ -8,11 +8,29 @@ import {
   PendingUserCredentialsRepository,
   PersonalAccessTokenRepository,
 } from './repositories';
-import { LocalAuthGuard } from './guards';
-import { LocalStrategy } from './strategies';
 import { JwtService } from '@nestjs/jwt';
+import {
+  MessageHandlerErrorBehavior,
+  RabbitMQModule,
+} from '@golevelup/nestjs-rabbitmq';
+import { RABBITMQ_URL_ADDRESS } from './constants';
 
 @Module({
+  imports: [
+    RabbitMQModule.forRoot(RabbitMQModule, {
+      defaultSubscribeErrorBehavior: MessageHandlerErrorBehavior.NACK,
+      defaultRpcErrorBehavior: MessageHandlerErrorBehavior.NACK,
+      exchanges: [
+        {
+          name: 'authentication',
+          type: 'topic',
+        },
+      ],
+      uri: RABBITMQ_URL_ADDRESS,
+      enableControllerDiscovery: true,
+    }),
+    AuthModule,
+  ],
   providers: [
     AuthService,
     JwtService,
@@ -21,10 +39,8 @@ import { JwtService } from '@nestjs/jwt';
     PendingUserCredentialsRepository,
     PersonalAccessTokenRepository,
     PrismaService,
-    LocalStrategy,
-    LocalAuthGuard,
   ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [RabbitMQModule],
 })
 export class AuthModule {}

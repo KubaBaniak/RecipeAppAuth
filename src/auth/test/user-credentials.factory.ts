@@ -10,6 +10,7 @@ type UserCredentialsOverrides = {
 
 type UserCredentialsWithHashedPasswordOverrides = {
   userId?: number;
+  password?: string;
 };
 
 export const generateUserCredentials = function (
@@ -27,7 +28,7 @@ export const generateUserCredentialsWithHashedPassword = async function (
   return {
     userId: overrides.userId ?? faker.number.int({ max: MAX_INT32 }),
     password: await bcrypt.hash(
-      faker.internet.password({ length: 64 }),
+      overrides.password ?? faker.internet.password({ length: 64 }),
       BCRYPT.SALT,
     ),
   };
