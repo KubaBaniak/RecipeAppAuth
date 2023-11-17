@@ -13,23 +13,23 @@ services:
     profiles:
       - dependencies
     networks:
-      - recipe-app-network
+      - recipe-app-auth-network
   application:
     image: '${APP_IMAGE_NAME}'
     build: .
     env_file: .env
     ports:
-      - '3000:3000'
+      - '3001:3001'
     depends_on:
       - db
     profiles:
       - app
     networks:
-      - recipe-app-network
+      - recipe-app-auth-network
 volumes:
   postgres:
     driver: local
 
 networks:
-  recipe-app-network:
+  recipe-app-auth-network:
     driver: bridge

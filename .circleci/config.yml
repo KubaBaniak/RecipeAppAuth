@@ -36,7 +36,14 @@ commands:
             BCRYPT_SALT_ROUNDS="$BCRYPT_SALT_ROUNDS"
             DATABASE_URL="$DATABASE_URL"
             JWT_EXPIRY_TIME="$JWT_EXPIRY_TIME"
+            JWT_PASSWORD_RESET_SECRET="$JWT_PASSWORD_RESET_SECRET"
+            JWT_PASSWORD_RESET_TIME="$JWT_PASSWORD_RESET_TIME"
+            JWT_PAT_SECRET="$JWT_PAT_SECRET"
             JWT_SECRET="$JWT_SECRET"
+            POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+            POSTGRES_PORT="$POSTGRES_PORT"
+            POSTGRES_USER="$POSTGRES_USER"
+            RABBITMQ_ADDRESS="$RABBITMQ_ADDRESS"
             EOF
             cat .env > test.env
 
@@ -102,6 +109,40 @@ jobs:
       - install_dependencies
       - run: HUSKY=0 npx semantic-release
 
+  deploy:
+    docker:
+      - image: cimg/node:18.16.0
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - 'b7:b2:8e:75:20:87:ae:53:f5:da:a1:09:47:26:14:c1'
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.14
+      - run:
+          name: Build App image
+          command: docker build -t $APP_IMAGE_NAME .
+      - run:
+          name: Save built image
+          command: docker save $APP_IMAGE_NAME | gzip > $APP_IMAGE_NAME.tar.gz
+      - create_envs
+      - run:
+          name: Send production env
+          command: |
+            scp -o StrictHostKeyChecking=accept-new ./.env $SSH_USER@$SSH_HOST:auth/.env
+      - run:
+          name: Send image to server
+          command: |
+            scp -o StrictHostKeyChecking=accept-new $APP_IMAGE_NAME.tar.gz $SSH_USER@$SSH_HOST:auth/$APP_IMAGE_NAME.tar.gz
+      - run:
+          name: Send docker compose file
+          command: |
+            scp -o StrictHostKeyChecking=accept-new docker-compose.yml $SSH_USER@$SSH_HOST:auth/docker-compose.yml
+      - run:
+          name: Deploy over SSH
+          command: |
+            ssh -o StrictHostKeyChecking=accept-new $SSH_USER@$SSH_HOST "./setup_recipe_app.sh"
+
 workflows:
   setup_and_test:
     jobs:
@@ -119,6 +160,14 @@ workflows:
           requires:
             - unit_test
             - e2e_test
+          filters:
+            branches:
+              only:
+                - main
+  deploy:
+    jobs:
+      - deploy:
+          context: recipe-app-auth-production
           filters:
             branches:
               only:
