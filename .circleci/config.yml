@@ -141,7 +141,7 @@ jobs:
       - run:
           name: Deploy over SSH
           command: |
-            ssh -o StrictHostKeyChecking=accept-new $SSH_USER@$SSH_HOST "./setup_recipe_app.sh"
+            ssh -o StrictHostKeyChecking=accept-new $SSH_USER@$SSH_HOST "./setup_script.sh"
 
 workflows:
   setup_and_test:
